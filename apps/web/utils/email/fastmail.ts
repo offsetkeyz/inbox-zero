@@ -31,6 +31,16 @@ import {
   getDraftsMailboxId,
   parseMailboxToLabel,
 } from "@/utils/fastmail/mailbox";
+import {
+  archiveThread as archiveThreadAction,
+  archiveEmails,
+  trashThread as trashThreadAction,
+  markThreadRead,
+  markThreadAsSpam,
+  labelEmail,
+  removeThreadFromMailbox,
+  removeThreadFromMailboxes,
+} from "@/utils/fastmail/actions";
 
 export class FastmailProvider implements EmailProvider {
   readonly name = "fastmail" as const;
@@ -651,103 +661,228 @@ export class FastmailProvider implements EmailProvider {
   }
 
   // ============================================
-  // Phase 3: Email Actions (not yet implemented)
+  // Phase 3: Email Actions
   // ============================================
 
-  async archiveThread(_threadId: string, _ownerEmail: string): Promise<void> {
-    throw new Error("archiveThread not yet implemented for Fastmail");
+  async archiveThread(threadId: string, _ownerEmail: string): Promise<void> {
+    const accountId = await this.getAccountId();
+    await archiveThreadAction(this.client, { accountId, threadId });
   }
 
   async archiveThreadWithLabel(
-    _threadId: string,
+    threadId: string,
     _ownerEmail: string,
-    _labelId?: string,
+    labelId?: string,
   ): Promise<void> {
-    throw new Error("archiveThreadWithLabel not yet implemented for Fastmail");
+    const accountId = await this.getAccountId();
+    await archiveThreadAction(this.client, { accountId, threadId });
+    if (labelId) {
+      const thread = await this.getThread(threadId);
+      for (const message of thread.messages) {
+        await labelEmail(this.client, { accountId, emailId: message.id, mailboxId: labelId });
+      }
+    }
   }
 
-  async archiveMessage(_messageId: string): Promise<void> {
-    throw new Error("archiveMessage not yet implemented for Fastmail");
+  async archiveMessage(messageId: string): Promise<void> {
+    const accountId = await this.getAccountId();
+    await archiveEmails(this.client, { accountId, emailIds: [messageId] });
   }
 
   async bulkArchiveFromSenders(
-    _fromEmails: string[],
+    fromEmails: string[],
     _ownerEmail: string,
     _emailAccountId: string,
   ): Promise<void> {
-    throw new Error("bulkArchiveFromSenders not yet implemented for Fastmail");
+    const accountId = await this.getAccountId();
+    const inboxMailboxId = await getInboxMailboxId(this.client, accountId);
+
+    if (!inboxMailboxId) {
+      this.logger.warn("Inbox mailbox not found for bulk archive");
+      return;
+    }
+
+    for (const sender of fromEmails) {
+      const emails = await queryAndGetEmails(this.client, {
+        accountId,
+        mailboxId: inboxMailboxId,
+        filter: { from: sender },
+        limit: 500,
+      });
+
+      if (emails.length > 0) {
+        await archiveEmails(this.client, {
+          accountId,
+          emailIds: emails.map((e) => e.id),
+        });
+      }
+    }
   }
 
   async bulkTrashFromSenders(
-    _fromEmails: string[],
+    fromEmails: string[],
     _ownerEmail: string,
     _emailAccountId: string,
   ): Promise<void> {
-    throw new Error("bulkTrashFromSenders not yet implemented for Fastmail");
+    const accountId = await this.getAccountId();
+
+    for (const sender of fromEmails) {
+      const emails = await queryAndGetEmails(this.client, {
+        accountId,
+        filter: { from: sender },
+        limit: 500,
+      });
+
+      if (emails.length > 0) {
+        const { trashEmails } = await import("@/utils/fastmail/actions");
+        await trashEmails(this.client, {
+          accountId,
+          emailIds: emails.map((e) => e.id),
+        });
+      }
+    }
   }
 
   async trashThread(
-    _threadId: string,
+    threadId: string,
     _ownerEmail: string,
     _actionSource: "user" | "automation",
   ): Promise<void> {
-    throw new Error("trashThread not yet implemented for Fastmail");
+    const accountId = await this.getAccountId();
+    await trashThreadAction(this.client, { accountId, threadId });
   }
 
-  async labelMessage(_options: {
+  async labelMessage(options: {
     messageId: string;
     labelId: string;
     labelName: string | null;
   }): Promise<{ usedFallback?: boolean; actualLabelId?: string }> {
-    throw new Error("labelMessage not yet implemented for Fastmail");
+    const accountId = await this.getAccountId();
+    await labelEmail(this.client, {
+      accountId,
+      emailId: options.messageId,
+      mailboxId: options.labelId,
+    });
+    return {};
   }
 
-  async removeThreadLabel(_threadId: string, _labelId: string): Promise<void> {
-    throw new Error("removeThreadLabel not yet implemented for Fastmail");
+  async removeThreadLabel(threadId: string, labelId: string): Promise<void> {
+    const accountId = await this.getAccountId();
+    await removeThreadFromMailbox(this.client, { accountId, threadId, mailboxId: labelId });
   }
 
-  async removeThreadLabels(_threadId: string, _labelIds: string[]): Promise<void> {
-    throw new Error("removeThreadLabels not yet implemented for Fastmail");
+  async removeThreadLabels(threadId: string, labelIds: string[]): Promise<void> {
+    if (labelIds.length === 0) return;
+    const accountId = await this.getAccountId();
+    await removeThreadFromMailboxes(this.client, { accountId, threadId, mailboxIds: labelIds });
   }
 
-  async markSpam(_threadId: string): Promise<void> {
-    throw new Error("markSpam not yet implemented for Fastmail");
+  async markSpam(threadId: string): Promise<void> {
+    const accountId = await this.getAccountId();
+    await markThreadAsSpam(this.client, { accountId, threadId });
   }
 
-  async markRead(_threadId: string): Promise<void> {
-    throw new Error("markRead not yet implemented for Fastmail");
+  async markRead(threadId: string): Promise<void> {
+    const accountId = await this.getAccountId();
+    await markThreadRead(this.client, { accountId, threadId, read: true });
   }
 
-  async markReadThread(_threadId: string, _read: boolean): Promise<void> {
-    throw new Error("markReadThread not yet implemented for Fastmail");
+  async markReadThread(threadId: string, read: boolean): Promise<void> {
+    const accountId = await this.getAccountId();
+    await markThreadRead(this.client, { accountId, threadId, read });
   }
 
-  async blockUnsubscribedEmail(_messageId: string): Promise<void> {
-    throw new Error("blockUnsubscribedEmail not yet implemented for Fastmail");
+  async blockUnsubscribedEmail(messageId: string): Promise<void> {
+    const accountId = await this.getAccountId();
+    await archiveEmails(this.client, { accountId, emailIds: [messageId] });
   }
 
-  async createLabel(_name: string, _description?: string): Promise<EmailLabel> {
-    throw new Error("createLabel not yet implemented for Fastmail");
+  async createLabel(name: string, _description?: string): Promise<EmailLabel> {
+    const accountId = await this.getAccountId();
+
+    const response = await this.client.makeRequest([
+      {
+        methodName: "Mailbox/set",
+        args: {
+          accountId,
+          create: {
+            newMailbox: { name },
+          },
+        },
+        id: "mailbox-create",
+      },
+    ]);
+
+    const [, result] = response.methodResponses[0];
+    const created = (result as { created: Record<string, { id: string }> }).created;
+    const newMailbox = created?.newMailbox;
+
+    if (!newMailbox) {
+      throw new Error("Failed to create mailbox");
+    }
+
+    return {
+      id: newMailbox.id,
+      name,
+      type: "user",
+    };
   }
 
-  async deleteLabel(_labelId: string): Promise<void> {
-    throw new Error("deleteLabel not yet implemented for Fastmail");
+  async deleteLabel(labelId: string): Promise<void> {
+    const accountId = await this.getAccountId();
+
+    await this.client.makeRequest([
+      {
+        methodName: "Mailbox/set",
+        args: {
+          accountId,
+          destroy: [labelId],
+        },
+        id: "mailbox-delete",
+      },
+    ]);
   }
 
-  async getOrCreateInboxZeroLabel(_key: InboxZeroLabel): Promise<EmailLabel> {
-    throw new Error("getOrCreateInboxZeroLabel not yet implemented for Fastmail");
+  async getOrCreateInboxZeroLabel(key: InboxZeroLabel): Promise<EmailLabel> {
+    const accountId = await this.getAccountId();
+    const labelName = `Inbox Zero/${key}`;
+
+    const existingMailbox = await getMailboxByName(this.client, { accountId, name: labelName });
+    if (existingMailbox) {
+      return parseMailboxToLabel(existingMailbox);
+    }
+
+    return this.createLabel(labelName);
   }
 
   async moveThreadToFolder(
-    _threadId: string,
+    threadId: string,
     _ownerEmail: string,
-    _folderName: string,
+    folderName: string,
   ): Promise<void> {
-    throw new Error("moveThreadToFolder not yet implemented for Fastmail");
+    const accountId = await this.getAccountId();
+    const mailbox = await getMailboxByName(this.client, { accountId, name: folderName });
+
+    if (!mailbox) {
+      throw new Error(`Folder not found: ${folderName}`);
+    }
+
+    const thread = await this.getThread(threadId);
+    for (const message of thread.messages) {
+      await labelEmail(this.client, { accountId, emailId: message.id, mailboxId: mailbox.id });
+    }
   }
 
-  async getOrCreateFolderIdByName(_folderName: string): Promise<string> {
-    throw new Error("getOrCreateFolderIdByName not yet implemented for Fastmail");
+  async getOrCreateFolderIdByName(folderName: string): Promise<string> {
+    const accountId = await this.getAccountId();
+    const mailbox = await getMailboxByName(this.client, { accountId, name: folderName });
+
+    if (mailbox) {
+      return mailbox.id;
+    }
+
+    const newLabel = await this.createLabel(folderName);
+    return newLabel.id;
   }
 
   // ============================================
