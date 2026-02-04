@@ -5,6 +5,7 @@ import type {
   JMAPMethodCall,
   JMAPResponse,
 } from "@/utils/fastmail/types";
+import { JMAP_SCOPES } from "@/utils/fastmail/scopes";
 
 const JMAP_SESSION_URL = "https://api.fastmail.com/.well-known/jmap";
 
@@ -78,11 +79,7 @@ export class FastmailClient {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          using: [
-            "urn:ietf:params:jmap:core",
-            "urn:ietf:params:jmap:mail",
-            "urn:ietf:params:jmap:submission",
-          ],
+          using: JMAP_SCOPES,
           methodCalls: methodCalls.map((call) => [
             call.methodName,
             call.args,
