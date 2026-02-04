@@ -41,6 +41,14 @@ import {
   removeThreadFromMailbox,
   removeThreadFromMailboxes,
 } from "@/utils/fastmail/actions";
+import {
+  sendEmail as sendEmailAction,
+  sendReply,
+  createDraft as createDraftAction,
+  updateDraft as updateDraftAction,
+  deleteDraft as deleteDraftAction,
+  sendDraft as sendDraftAction,
+} from "@/utils/fastmail/mail";
 
 export class FastmailProvider implements EmailProvider {
   readonly name = "fastmail" as const;
@@ -886,12 +894,12 @@ export class FastmailProvider implements EmailProvider {
   }
 
   // ============================================
-  // Phase 4: Send Email (not yet implemented)
+  // Phase 4: Send Email
   // ============================================
 
   async draftEmail(
-    _email: ParsedMessage,
-    _args: {
+    email: ParsedMessage,
+    args: {
       to?: string;
       subject?: string;
       content: string;
@@ -901,24 +909,67 @@ export class FastmailProvider implements EmailProvider {
     _userEmail: string,
     _executedRule?: { id: string; threadId: string; emailAccountId: string },
   ): Promise<{ draftId: string }> {
-    throw new Error("draftEmail not yet implemented for Fastmail");
+    const accountId = await this.getAccountId();
+
+    const to = args.to || email.headers.from;
+    const subject = args.subject || `Re: ${email.subject}`;
+    const inReplyTo = email.headers["message-id"];
+    const references = email.headers.references
+      ? `${email.headers.references} ${inReplyTo}`
+      : inReplyTo;
+
+    const { draftId } = await createDraftAction(this.client, {
+      accountId,
+      to,
+      subject,
+      htmlBody: args.content,
+      inReplyTo,
+      references,
+    });
+
+    return { draftId };
   }
 
-  async replyToEmail(_email: ParsedMessage, _content: string): Promise<void> {
-    throw new Error("replyToEmail not yet implemented for Fastmail");
+  async replyToEmail(email: ParsedMessage, content: string): Promise<void> {
+    const accountId = await this.getAccountId();
+
+    const to = email.headers.from;
+    const subject = email.subject.startsWith("Re:") ? email.subject : `Re: ${email.subject}`;
+    const inReplyTo = email.headers["message-id"] || "";
+    const references = email.headers.references
+      ? `${email.headers.references} ${inReplyTo}`
+      : inReplyTo;
+
+    await sendReply(this.client, {
+      accountId,
+      to,
+      subject,
+      htmlBody: content,
+      inReplyTo,
+      references,
+    });
   }
 
-  async sendEmail(_args: {
+  async sendEmail(args: {
     to: string;
     cc?: string;
     bcc?: string;
     subject: string;
     messageText: string;
   }): Promise<void> {
-    throw new Error("sendEmail not yet implemented for Fastmail");
+    const accountId = await this.getAccountId();
+
+    await sendEmailAction(this.client, {
+      accountId,
+      to: args.to,
+      cc: args.cc,
+      bcc: args.bcc,
+      subject: args.subject,
+      textBody: args.messageText,
+    });
   }
 
-  async sendEmailWithHtml(_body: {
+  async sendEmailWithHtml(body: {
     replyToEmail?: {
       threadId: string;
       headerMessageId: string;
@@ -937,42 +988,127 @@ export class FastmailProvider implements EmailProvider {
       contentType: string;
     }>;
   }): Promise<{ messageId: string; threadId: string }> {
-    throw new Error("sendEmailWithHtml not yet implemented for Fastmail");
+    const accountId = await this.getAccountId();
+
+    if (body.attachments && body.attachments.length > 0) {
+      this.logger.warn("Attachments not yet supported for Fastmail");
+    }
+
+    if (body.replyToEmail) {
+      return sendReply(this.client, {
+        accountId,
+        to: body.to,
+        cc: body.cc,
+        bcc: body.bcc,
+        subject: body.subject,
+        htmlBody: body.messageHtml,
+        inReplyTo: body.replyToEmail.headerMessageId,
+        references: body.replyToEmail.references,
+      });
+    }
+
+    return sendEmailAction(this.client, {
+      accountId,
+      to: body.to,
+      cc: body.cc,
+      bcc: body.bcc,
+      subject: body.subject,
+      htmlBody: body.messageHtml,
+    });
   }
 
   async forwardEmail(
-    _email: ParsedMessage,
-    _args: { to: string; cc?: string; bcc?: string; content?: string },
+    email: ParsedMessage,
+    args: { to: string; cc?: string; bcc?: string; content?: string },
   ): Promise<void> {
-    throw new Error("forwardEmail not yet implemented for Fastmail");
+    const accountId = await this.getAccountId();
+
+    const forwardedContent = `
+${args.content || ""}
+
+---------- Forwarded message ---------
+From: ${email.headers.from}
+Date: ${email.headers.date}
+Subject: ${email.subject}
+To: ${email.headers.to}
+
+${email.textHtml || email.textPlain || ""}
+    `.trim();
+
+    await sendEmailAction(this.client, {
+      accountId,
+      to: args.to,
+      cc: args.cc,
+      bcc: args.bcc,
+      subject: `Fwd: ${email.subject}`,
+      htmlBody: forwardedContent,
+    });
   }
 
-  async getDraft(_draftId: string): Promise<ParsedMessage | null> {
-    throw new Error("getDraft not yet implemented for Fastmail");
+  async getDraft(draftId: string): Promise<ParsedMessage | null> {
+    try {
+      return await this.getMessage(draftId);
+    } catch {
+      return null;
+    }
   }
 
-  async deleteDraft(_draftId: string): Promise<void> {
-    throw new Error("deleteDraft not yet implemented for Fastmail");
+  async deleteDraft(draftId: string): Promise<void> {
+    const accountId = await this.getAccountId();
+    await deleteDraftAction(this.client, { accountId, draftId });
   }
 
-  async sendDraft(_draftId: string): Promise<{ messageId: string; threadId: string }> {
-    throw new Error("sendDraft not yet implemented for Fastmail");
+  async sendDraft(draftId: string): Promise<{ messageId: string; threadId: string }> {
+    const accountId = await this.getAccountId();
+    return sendDraftAction(this.client, { accountId, draftId });
   }
 
-  async createDraft(_params: {
+  async createDraft(params: {
     to: string;
     subject: string;
     messageHtml: string;
     replyToMessageId?: string;
   }): Promise<{ id: string }> {
-    throw new Error("createDraft not yet implemented for Fastmail");
+    const accountId = await this.getAccountId();
+
+    let inReplyTo: string | undefined;
+    let references: string | undefined;
+
+    if (params.replyToMessageId) {
+      try {
+        const originalMessage = await this.getMessage(params.replyToMessageId);
+        inReplyTo = originalMessage.headers["message-id"];
+        references = originalMessage.headers.references
+          ? `${originalMessage.headers.references} ${inReplyTo}`
+          : inReplyTo;
+      } catch {
+        this.logger.warn("Could not get original message for threading");
+      }
+    }
+
+    const { draftId } = await createDraftAction(this.client, {
+      accountId,
+      to: params.to,
+      subject: params.subject,
+      htmlBody: params.messageHtml,
+      inReplyTo,
+      references,
+    });
+
+    return { id: draftId };
   }
 
   async updateDraft(
-    _draftId: string,
-    _params: { messageHtml?: string; subject?: string },
+    draftId: string,
+    params: { messageHtml?: string; subject?: string },
   ): Promise<void> {
-    throw new Error("updateDraft not yet implemented for Fastmail");
+    const accountId = await this.getAccountId();
+    await updateDraftAction(this.client, {
+      accountId,
+      draftId,
+      htmlBody: params.messageHtml,
+      subject: params.subject,
+    });
   }
 
   // ============================================
