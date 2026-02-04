@@ -44,8 +44,9 @@ export class FastmailClient {
         throw new SafeError("Failed to authenticate with Fastmail");
       }
 
-      this.session = await response.json();
-      return this.session;
+      const session: JMAPSession = await response.json();
+      this.session = session;
+      return session;
     } catch (error) {
       this.logger.error("Error fetching JMAP session", { error });
       throw error;
