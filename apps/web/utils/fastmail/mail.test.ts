@@ -122,22 +122,25 @@ describe("sendEmail", () => {
   });
 
   it("creates email and submits it", async () => {
-    vi.mocked(mockClient.makeRequest)
-      .mockResolvedValueOnce({
-        methodResponses: [
-          [
-            "Identity/get",
-            {
-              accountId: "account-123",
-              state: "state-1",
-              list: [mockIdentity],
-              notFound: [],
-            },
-            "identity-get",
-          ],
+    const identityResponse = {
+      methodResponses: [
+        [
+          "Identity/get",
+          {
+            accountId: "account-123",
+            state: "state-1",
+            list: [mockIdentity],
+            notFound: [],
+          },
+          "identity-get",
         ],
-        sessionState: "session-1",
-      })
+      ],
+      sessionState: "session-1",
+    };
+
+    vi.mocked(mockClient.makeRequest)
+      .mockResolvedValueOnce(identityResponse)
+      .mockResolvedValueOnce(identityResponse)
       .mockResolvedValueOnce({
         methodResponses: [
           [
@@ -190,7 +193,7 @@ describe("sendEmail", () => {
 
     expect(result.messageId).toBe("email-new");
     expect(result.threadId).toBe("thread-new");
-    expect(mockClient.makeRequest).toHaveBeenCalledTimes(3);
+    expect(mockClient.makeRequest).toHaveBeenCalledTimes(4);
   });
 });
 
