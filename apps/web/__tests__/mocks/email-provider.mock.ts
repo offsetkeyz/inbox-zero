@@ -157,6 +157,10 @@ export function createMockEmailProvider(
       subscriptionId: "sub-123",
     }),
     unwatchEmails: vi.fn().mockResolvedValue(undefined),
+    getEmailChanges: vi.fn().mockResolvedValue({
+      created: [],
+      newState: "mock-new-state",
+    }),
   };
 
   // Apply overrides
