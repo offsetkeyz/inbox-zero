@@ -5,6 +5,7 @@ import type {
   JMAPSetResponse,
 } from "@/utils/fastmail/types";
 import { getSentMailboxId, getDraftsMailboxId } from "@/utils/fastmail/mailbox";
+import { getEmail } from "@/utils/fastmail/message";
 
 export async function getIdentities(
   client: FastmailClient,
@@ -79,12 +80,12 @@ export async function createEmailForSending(
   const bodyParts: Array<{ partId: string; type: string }> = [];
 
   if (textBody) {
-    bodyValue["text"] = { value: textBody, charset: "utf-8" };
+    bodyValue.text = { value: textBody, charset: "utf-8" };
     bodyParts.push({ partId: "text", type: "text/plain" });
   }
 
   if (htmlBody) {
-    bodyValue["html"] = { value: htmlBody, charset: "utf-8" };
+    bodyValue.html = { value: htmlBody, charset: "utf-8" };
     bodyParts.push({ partId: "html", type: "text/html" });
   }
 
@@ -208,9 +209,18 @@ export async function sendEmail(
     throw new Error("No identity found for sending email");
   }
 
-  const toAddresses = to.split(",").map((e) => e.trim()).filter(Boolean);
-  const ccAddresses = cc?.split(",").map((e) => e.trim()).filter(Boolean);
-  const bccAddresses = bcc?.split(",").map((e) => e.trim()).filter(Boolean);
+  const toAddresses = to
+    .split(",")
+    .map((e) => e.trim())
+    .filter(Boolean);
+  const ccAddresses = cc
+    ?.split(",")
+    .map((e) => e.trim())
+    .filter(Boolean);
+  const bccAddresses = bcc
+    ?.split(",")
+    .map((e) => e.trim())
+    .filter(Boolean);
 
   const { emailId, threadId } = await createEmailForSending(client, {
     accountId,
@@ -265,9 +275,18 @@ export async function sendReply(
     throw new Error("No identity found for sending email");
   }
 
-  const toAddresses = to.split(",").map((e) => e.trim()).filter(Boolean);
-  const ccAddresses = cc?.split(",").map((e) => e.trim()).filter(Boolean);
-  const bccAddresses = bcc?.split(",").map((e) => e.trim()).filter(Boolean);
+  const toAddresses = to
+    .split(",")
+    .map((e) => e.trim())
+    .filter(Boolean);
+  const ccAddresses = cc
+    ?.split(",")
+    .map((e) => e.trim())
+    .filter(Boolean);
+  const bccAddresses = bcc
+    ?.split(",")
+    .map((e) => e.trim())
+    .filter(Boolean);
 
   const { emailId, threadId } = await createEmailForSending(client, {
     accountId,
@@ -316,7 +335,10 @@ export async function createDraft(
     throw new Error("Drafts mailbox not found");
   }
 
-  const toAddresses = to.split(",").map((e) => e.trim()).filter(Boolean);
+  const toAddresses = to
+    .split(",")
+    .map((e) => e.trim())
+    .filter(Boolean);
 
   const emailCreate: Record<string, unknown> = {
     mailboxIds: { [draftsMailboxId]: true },
@@ -451,9 +473,17 @@ export async function sendDraft(
 ): Promise<{ messageId: string; threadId: string }> {
   const { accountId, draftId } = options;
 
-  const identity = await getPrimaryIdentity(client, { accountId });
+  const [identity, draft] = await Promise.all([
+    getPrimaryIdentity(client, { accountId }),
+    getEmail(client, { accountId, id: draftId }),
+  ]);
+
   if (!identity) {
     throw new Error("No identity found for sending email");
+  }
+
+  if (!draft) {
+    throw new Error("Draft not found");
   }
 
   const sentMailboxId = await getSentMailboxId(client, accountId);
@@ -495,6 +525,6 @@ export async function sendDraft(
 
   return {
     messageId: draftId,
-    threadId: draftId,
+    threadId: draft.threadId,
   };
 }

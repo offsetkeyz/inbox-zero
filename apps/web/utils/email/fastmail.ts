@@ -35,6 +35,7 @@ import {
   archiveThread as archiveThreadAction,
   archiveEmails,
   trashThread as trashThreadAction,
+  trashEmails,
   markThreadRead,
   markThreadAsSpam,
   labelEmail,
@@ -77,7 +78,8 @@ export class FastmailProvider implements EmailProvider {
 
   async getThreads(folderId?: string): Promise<EmailThread[]> {
     const accountId = await this.getAccountId();
-    const mailboxId = folderId || (await getInboxMailboxId(this.client, accountId));
+    const mailboxId =
+      folderId || (await getInboxMailboxId(this.client, accountId));
 
     if (!mailboxId) {
       this.logger.warn("No mailbox ID found for getThreads");
@@ -96,7 +98,10 @@ export class FastmailProvider implements EmailProvider {
 
   async getThread(threadId: string): Promise<EmailThread> {
     const accountId = await this.getAccountId();
-    const thread = await getThreadWithMessages(this.client, { accountId, threadId });
+    const thread = await getThreadWithMessages(this.client, {
+      accountId,
+      threadId,
+    });
 
     if (!thread) {
       return { id: threadId, messages: [], snippet: "" };
@@ -116,7 +121,10 @@ export class FastmailProvider implements EmailProvider {
 
   async getLabelById(labelId: string): Promise<EmailLabel | null> {
     const accountId = await this.getAccountId();
-    const mailbox = await getMailboxById(this.client, { accountId, mailboxId: labelId });
+    const mailbox = await getMailboxById(this.client, {
+      accountId,
+      mailboxId: labelId,
+    });
 
     if (!mailbox) return null;
     return parseMailboxToLabel(mailbox);
@@ -146,7 +154,9 @@ export class FastmailProvider implements EmailProvider {
     return parseJMAPEmail(email);
   }
 
-  async getMessageByRfc822MessageId(rfc822MessageId: string): Promise<ParsedMessage | null> {
+  async getMessageByRfc822MessageId(
+    rfc822MessageId: string,
+  ): Promise<ParsedMessage | null> {
     const accountId = await this.getAccountId();
 
     const queryResult = await queryEmails(this.client, {
@@ -296,10 +306,14 @@ export class FastmailProvider implements EmailProvider {
     const thread = await this.getThread(threadId);
     if (!inboxMailboxId) return thread.messages;
 
-    return thread.messages.filter((msg) => msg.labelIds?.includes(inboxMailboxId));
+    return thread.messages.filter((msg) =>
+      msg.labelIds?.includes(inboxMailboxId),
+    );
   }
 
-  async getPreviousConversationMessages(messageIds: string[]): Promise<ParsedMessage[]> {
+  async getPreviousConversationMessages(
+    messageIds: string[],
+  ): Promise<ParsedMessage[]> {
     const accountId = await this.getAccountId();
     const result = await getEmails(this.client, { accountId, ids: messageIds });
     return result.list.map(parseJMAPEmail);
@@ -313,7 +327,9 @@ export class FastmailProvider implements EmailProvider {
     after?: Date;
   }): Promise<{ messages: ParsedMessage[]; nextPageToken?: string }> {
     const accountId = await this.getAccountId();
-    const position = options.pageToken ? parseInt(options.pageToken, 10) : 0;
+    const position = options.pageToken
+      ? Number.parseInt(options.pageToken, 10)
+      : 0;
     const limit = options.maxResults || 20;
 
     const filter: Record<string, unknown> = {};
@@ -353,7 +369,9 @@ export class FastmailProvider implements EmailProvider {
     pageToken?: string;
   }): Promise<{ messages: ParsedMessage[]; nextPageToken?: string }> {
     const accountId = await this.getAccountId();
-    const position = options.pageToken ? parseInt(options.pageToken, 10) : 0;
+    const position = options.pageToken
+      ? Number.parseInt(options.pageToken, 10)
+      : 0;
     const limit = options.maxResults || 20;
 
     const queryResult = await queryEmails(this.client, {
@@ -385,7 +403,9 @@ export class FastmailProvider implements EmailProvider {
     after?: Date;
   }): Promise<{ messages: ParsedMessage[]; nextPageToken?: string }> {
     const accountId = await this.getAccountId();
-    const position = options.pageToken ? parseInt(options.pageToken, 10) : 0;
+    const position = options.pageToken
+      ? Number.parseInt(options.pageToken, 10)
+      : 0;
     const limit = options.maxResults || 20;
 
     const filter: Record<string, unknown> = {
@@ -440,10 +460,9 @@ export class FastmailProvider implements EmailProvider {
       ids: queryResult.ids,
     });
 
-    const threadIds = [...new Set(emailsResult.list.map((e) => e.threadId))].slice(
-      0,
-      maxThreads,
-    );
+    const threadIds = [
+      ...new Set(emailsResult.list.map((e) => e.threadId)),
+    ].slice(0, maxThreads);
 
     return getThreadsWithMessages(this.client, { accountId, threadIds });
   }
@@ -464,7 +483,9 @@ export class FastmailProvider implements EmailProvider {
     return getThreadsWithMessages(this.client, { accountId, threadIds });
   }
 
-  async getLatestMessageInThread(threadId: string): Promise<ParsedMessage | null> {
+  async getLatestMessageInThread(
+    threadId: string,
+  ): Promise<ParsedMessage | null> {
     const thread = await this.getThread(threadId);
     if (!thread.messages.length) return null;
 
@@ -493,10 +514,13 @@ export class FastmailProvider implements EmailProvider {
     pageToken?: string;
   }): Promise<{ threads: EmailThread[]; nextPageToken?: string }> {
     const accountId = await this.getAccountId();
-    const position = options.pageToken ? parseInt(options.pageToken, 10) : 0;
+    const position = options.pageToken
+      ? Number.parseInt(options.pageToken, 10)
+      : 0;
     const limit = options.maxResults || 50;
 
-    const { fromEmail, after, before, isUnread, type, labelId } = options.query || {};
+    const { fromEmail, after, before, isUnread, type, labelId } =
+      options.query || {};
 
     const filter: Record<string, unknown> = {};
 
@@ -517,7 +541,10 @@ export class FastmailProvider implements EmailProvider {
     if (labelId) {
       mailboxId = labelId;
     } else if (type) {
-      const mailbox = await getMailboxByName(this.client, { accountId, name: type });
+      const mailbox = await getMailboxByName(this.client, {
+        accountId,
+        name: type,
+      });
       mailboxId = mailbox?.id || null;
     }
 
@@ -539,7 +566,10 @@ export class FastmailProvider implements EmailProvider {
     });
 
     const threadIds = [...new Set(emailsResult.list.map((e) => e.threadId))];
-    const threads = await getThreadsWithMessages(this.client, { accountId, threadIds });
+    const threads = await getThreadsWithMessages(this.client, {
+      accountId,
+      threadIds,
+    });
 
     const hasMore = queryResult.ids.length === limit;
     const nextPageToken = hasMore ? String(position + limit) : undefined;
@@ -565,7 +595,10 @@ export class FastmailProvider implements EmailProvider {
     return queryResult.ids.length > 0;
   }
 
-  async countReceivedMessages(senderEmail: string, threshold: number): Promise<number> {
+  async countReceivedMessages(
+    senderEmail: string,
+    threshold: number,
+  ): Promise<number> {
     const accountId = await this.getAccountId();
 
     const queryResult = await queryEmails(this.client, {
@@ -578,8 +611,8 @@ export class FastmailProvider implements EmailProvider {
   }
 
   async getAttachment(
-    messageId: string,
-    attachmentId: string,
+    _messageId: string,
+    _attachmentId: string,
   ): Promise<{ data: string; size: number }> {
     this.logger.warn("getAttachment not yet implemented for Fastmail");
     return { data: "", size: 0 };
@@ -646,7 +679,10 @@ export class FastmailProvider implements EmailProvider {
       ids: queryResult.ids,
     });
 
-    const threadMap = new Map<string, { id: string; snippet: string; subject: string }>();
+    const threadMap = new Map<
+      string,
+      { id: string; snippet: string; subject: string }
+    >();
     for (const email of emailsResult.list) {
       if (!threadMap.has(email.threadId)) {
         threadMap.set(email.threadId, {
@@ -665,7 +701,9 @@ export class FastmailProvider implements EmailProvider {
   }
 
   isSentMessage(message: ParsedMessage): boolean {
-    return message.labelIds?.some((id) => id.toLowerCase().includes("sent")) || false;
+    return (
+      message.labelIds?.some((id) => id.toLowerCase().includes("sent")) || false
+    );
   }
 
   // ============================================
@@ -687,7 +725,11 @@ export class FastmailProvider implements EmailProvider {
     if (labelId) {
       const thread = await this.getThread(threadId);
       for (const message of thread.messages) {
-        await labelEmail(this.client, { accountId, emailId: message.id, mailboxId: labelId });
+        await labelEmail(this.client, {
+          accountId,
+          emailId: message.id,
+          mailboxId: labelId,
+        });
       }
     }
   }
@@ -742,7 +784,6 @@ export class FastmailProvider implements EmailProvider {
       });
 
       if (emails.length > 0) {
-        const { trashEmails } = await import("@/utils/fastmail/actions");
         await trashEmails(this.client, {
           accountId,
           emailIds: emails.map((e) => e.id),
@@ -776,13 +817,24 @@ export class FastmailProvider implements EmailProvider {
 
   async removeThreadLabel(threadId: string, labelId: string): Promise<void> {
     const accountId = await this.getAccountId();
-    await removeThreadFromMailbox(this.client, { accountId, threadId, mailboxId: labelId });
+    await removeThreadFromMailbox(this.client, {
+      accountId,
+      threadId,
+      mailboxId: labelId,
+    });
   }
 
-  async removeThreadLabels(threadId: string, labelIds: string[]): Promise<void> {
+  async removeThreadLabels(
+    threadId: string,
+    labelIds: string[],
+  ): Promise<void> {
     if (labelIds.length === 0) return;
     const accountId = await this.getAccountId();
-    await removeThreadFromMailboxes(this.client, { accountId, threadId, mailboxIds: labelIds });
+    await removeThreadFromMailboxes(this.client, {
+      accountId,
+      threadId,
+      mailboxIds: labelIds,
+    });
   }
 
   async markSpam(threadId: string): Promise<void> {
@@ -822,7 +874,8 @@ export class FastmailProvider implements EmailProvider {
     ]);
 
     const [, result] = response.methodResponses[0];
-    const created = (result as { created: Record<string, { id: string }> }).created;
+    const created = (result as { created: Record<string, { id: string }> })
+      .created;
     const newMailbox = created?.newMailbox;
 
     if (!newMailbox) {
@@ -855,7 +908,10 @@ export class FastmailProvider implements EmailProvider {
     const accountId = await this.getAccountId();
     const labelName = `Inbox Zero/${key}`;
 
-    const existingMailbox = await getMailboxByName(this.client, { accountId, name: labelName });
+    const existingMailbox = await getMailboxByName(this.client, {
+      accountId,
+      name: labelName,
+    });
     if (existingMailbox) {
       return parseMailboxToLabel(existingMailbox);
     }
@@ -869,7 +925,10 @@ export class FastmailProvider implements EmailProvider {
     folderName: string,
   ): Promise<void> {
     const accountId = await this.getAccountId();
-    const mailbox = await getMailboxByName(this.client, { accountId, name: folderName });
+    const mailbox = await getMailboxByName(this.client, {
+      accountId,
+      name: folderName,
+    });
 
     if (!mailbox) {
       throw new Error(`Folder not found: ${folderName}`);
@@ -877,13 +936,20 @@ export class FastmailProvider implements EmailProvider {
 
     const thread = await this.getThread(threadId);
     for (const message of thread.messages) {
-      await labelEmail(this.client, { accountId, emailId: message.id, mailboxId: mailbox.id });
+      await labelEmail(this.client, {
+        accountId,
+        emailId: message.id,
+        mailboxId: mailbox.id,
+      });
     }
   }
 
   async getOrCreateFolderIdByName(folderName: string): Promise<string> {
     const accountId = await this.getAccountId();
-    const mailbox = await getMailboxByName(this.client, { accountId, name: folderName });
+    const mailbox = await getMailboxByName(this.client, {
+      accountId,
+      name: folderName,
+    });
 
     if (mailbox) {
       return mailbox.id;
@@ -934,7 +1000,9 @@ export class FastmailProvider implements EmailProvider {
     const accountId = await this.getAccountId();
 
     const to = email.headers.from;
-    const subject = email.subject.startsWith("Re:") ? email.subject : `Re: ${email.subject}`;
+    const subject = email.subject.startsWith("Re:")
+      ? email.subject
+      : `Re: ${email.subject}`;
     const inReplyTo = email.headers["message-id"] || "";
     const references = email.headers.references
       ? `${email.headers.references} ${inReplyTo}`
@@ -1058,7 +1126,9 @@ ${email.textHtml || email.textPlain || ""}
     await deleteDraftAction(this.client, { accountId, draftId });
   }
 
-  async sendDraft(draftId: string): Promise<{ messageId: string; threadId: string }> {
+  async sendDraft(
+    draftId: string,
+  ): Promise<{ messageId: string; threadId: string }> {
     const accountId = await this.getAccountId();
     return sendDraftAction(this.client, { accountId, draftId });
   }
