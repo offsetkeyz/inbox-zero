@@ -47,7 +47,14 @@ export async function queryEmails(
     sort?: Array<{ property: string; isAscending: boolean }>;
   },
 ): Promise<JMAPQueryResponse> {
-  const { accountId, mailboxId, limit = 50, position = 0, filter, sort } = options;
+  const {
+    accountId,
+    mailboxId,
+    limit = 50,
+    position = 0,
+    filter,
+    sort,
+  } = options;
 
   const queryFilter = mailboxId
     ? { inMailbox: mailboxId, ...filter }
@@ -135,8 +142,9 @@ export function parseJMAPEmail(email: JMAPEmail): ParsedMessage {
   const formatAddress = (addr: { name: string | null; email: string }) =>
     addr.name ? `${addr.name} <${addr.email}>` : addr.email;
 
-  const formatAddressList = (addrs: Array<{ name: string | null; email: string }>) =>
-    addrs.map(formatAddress).join(", ");
+  const formatAddressList = (
+    addrs: Array<{ name: string | null; email: string }>,
+  ) => addrs.map(formatAddress).join(", ");
 
   let textPlain: string | undefined;
   let textHtml: string | undefined;
@@ -183,7 +191,7 @@ export function parseJMAPEmail(email: JMAPEmail): ParsedMessage {
     (id) => email.mailboxIds[id],
   );
 
-  const isRead = email.keywords?.["$seen"] === true;
+  const isRead = email.keywords?.$seen === true;
   if (!isRead) {
     labelIds.push("UNREAD");
   }

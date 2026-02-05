@@ -35,6 +35,10 @@ export function getEmailAccount(
     multiRuleSelectionEnabled: overrides.multiRuleSelectionEnabled ?? false,
     timezone: null,
     calendarBookingLink: null,
+    jmapAccountId: null,
+    lastSyncedJmapState: null,
+    filingEnabled: false,
+    filingPrompt: null,
     user: {
       aiModel: null,
       aiProvider: null,

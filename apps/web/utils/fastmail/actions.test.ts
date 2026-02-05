@@ -321,7 +321,9 @@ describe("getThreadEmailIds", () => {
         [
           "Thread/get",
           {
-            list: [{ id: "thread-1", emailIds: ["email-1", "email-2", "email-3"] }],
+            list: [
+              { id: "thread-1", emailIds: ["email-1", "email-2", "email-3"] },
+            ],
             notFound: [],
           },
           "thread-get",

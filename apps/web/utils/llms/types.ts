@@ -16,6 +16,10 @@ export type EmailAccountWithAI = Prisma.EmailAccountGetPayload<{
     multiRuleSelectionEnabled: true;
     timezone: true;
     calendarBookingLink: true;
+    jmapAccountId: true;
+    lastSyncedJmapState: true;
+    filingEnabled: true;
+    filingPrompt: true;
     user: {
       select: {
         aiProvider: true;

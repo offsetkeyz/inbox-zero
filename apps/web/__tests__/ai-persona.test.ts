@@ -30,6 +30,10 @@ describe.runIf(isAiTest)(
         timezone: null,
         calendarBookingLink: null,
         multiRuleSelectionEnabled: false,
+        jmapAccountId: null,
+        lastSyncedJmapState: null,
+        filingEnabled: false,
+        filingPrompt: null,
         user: {
           aiModel: null,
           aiProvider: null,

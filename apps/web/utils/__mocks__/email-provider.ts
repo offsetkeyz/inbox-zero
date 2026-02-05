@@ -142,6 +142,11 @@ export const createMockEmailProvider = (
   getOrCreateFolderIdByName: vi.fn().mockResolvedValue("folder1"),
   sendEmailWithHtml: vi.fn().mockResolvedValue(undefined),
   getDrafts: vi.fn().mockResolvedValue([]),
+  getThreadsWithLabel: vi.fn().mockResolvedValue([]),
+  getEmailChanges: vi
+    .fn()
+    .mockResolvedValue({ created: [], newState: "new-state" }),
+  getLatestMessageInThread: vi.fn().mockResolvedValue(null),
   ...overrides,
 });
 

@@ -1,3 +1,4 @@
+import { env } from "@/env";
 import type { FastmailClient } from "@/utils/fastmail/client";
 import type { ParsedMessage } from "@/utils/types";
 import type { InboxZeroLabel } from "@/utils/label";
@@ -50,6 +51,7 @@ import {
   deleteDraft as deleteDraftAction,
   sendDraft as sendDraftAction,
 } from "@/utils/fastmail/mail";
+import type { JMAPEmail } from "@/utils/fastmail/types";
 
 export class FastmailProvider implements EmailProvider {
   readonly name = "fastmail" as const;
@@ -1229,12 +1231,196 @@ ${email.textHtml || email.textPlain || ""}
     expirationDate: Date;
     subscriptionId?: string;
   } | null> {
-    this.logger.warn("watchEmails not supported for Fastmail");
-    return null;
+    if (!env.FASTMAIL_WEBHOOK_VERIFICATION_TOKEN) {
+      this.logger.warn(
+        "FASTMAIL_WEBHOOK_VERIFICATION_TOKEN not configured, skipping watch",
+      );
+      return null;
+    }
+
+    const accountId = await this.getAccountId();
+
+    const webhookUrl = `${env.NEXT_PUBLIC_BASE_URL}/api/fastmail/webhook?token=${env.FASTMAIL_WEBHOOK_VERIFICATION_TOKEN}`;
+    const expires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
+
+    this.logger.info("Creating JMAP PushSubscription", {
+      accountId,
+      expiresAt: expires.toISOString(),
+    });
+
+    const response = await this.client.makeRequest([
+      {
+        methodName: "PushSubscription/set",
+        args: {
+          create: {
+            "inbox-zero": {
+              deviceClientId: "inbox-zero",
+              url: webhookUrl,
+              types: ["Email"],
+              expires: expires.toISOString(),
+            },
+          },
+        },
+        id: "push-create",
+      },
+    ]);
+
+    const setResponse = response.methodResponses[0]?.[1] as {
+      created?: Record<string, { id: string; expires: string }>;
+      notCreated?: Record<string, { type: string; description?: string }>;
+    };
+
+    const created = setResponse?.created?.["inbox-zero"];
+    if (!created) {
+      const notCreated = setResponse?.notCreated?.["inbox-zero"];
+      this.logger.error("Failed to create push subscription", { notCreated });
+      throw new Error(
+        `Failed to create push subscription: ${notCreated?.description || "unknown error"}`,
+      );
+    }
+
+    this.logger.info("Created JMAP PushSubscription", {
+      subscriptionId: created.id,
+      expires: created.expires,
+    });
+
+    return {
+      expirationDate: new Date(created.expires),
+      subscriptionId: created.id,
+    };
   }
 
-  async unwatchEmails(_subscriptionId?: string): Promise<void> {
-    this.logger.warn("unwatchEmails not supported for Fastmail");
+  async unwatchEmails(subscriptionId?: string): Promise<void> {
+    if (!subscriptionId) {
+      this.logger.info("No subscription ID provided, skipping unwatch");
+      return;
+    }
+
+    this.logger.info("Destroying JMAP PushSubscription", { subscriptionId });
+
+    await this.client.makeRequest([
+      {
+        methodName: "PushSubscription/set",
+        args: {
+          destroy: [subscriptionId],
+        },
+        id: "push-destroy",
+      },
+    ]);
+
+    this.logger.info("Destroyed JMAP PushSubscription", { subscriptionId });
+  }
+
+  async getEmailChanges(
+    sinceState: string | undefined,
+    newState: string,
+  ): Promise<{
+    created: ParsedMessage[];
+    newState: string;
+  }> {
+    const accountId = await this.getAccountId();
+
+    // If no sinceState, we can't use Email/changes - need full sync
+    if (!sinceState) {
+      this.logger.info("No sinceState, returning empty for initial sync");
+      return { created: [], newState };
+    }
+
+    this.logger.info("Fetching email changes", { sinceState, newState });
+
+    const response = await this.client.makeRequest([
+      {
+        methodName: "Email/changes",
+        args: {
+          accountId,
+          sinceState,
+        },
+        id: "changes",
+      },
+    ]);
+
+    const changesResponse = response.methodResponses[0];
+
+    // Check for error response
+    if (changesResponse[0] === "error") {
+      const error = changesResponse[1] as {
+        type: string;
+        description?: string;
+      };
+      if (error.type === "cannotCalculateChanges") {
+        throw new Error(
+          `cannotCalculateChanges: ${error.description || "State too old"}`,
+        );
+      }
+      throw new Error(`JMAP error: ${error.type}`);
+    }
+
+    const changes = changesResponse[1] as {
+      oldState: string;
+      newState: string;
+      hasMoreChanges: boolean;
+      created: string[];
+      updated: string[];
+      destroyed: string[];
+    };
+
+    if (changes.created.length === 0) {
+      this.logger.info("No new emails created");
+      return { created: [], newState: changes.newState };
+    }
+
+    this.logger.info("Fetching created emails", {
+      count: changes.created.length,
+    });
+
+    // Fetch the full email objects for created IDs
+    const getResponse = await this.client.makeRequest([
+      {
+        methodName: "Email/get",
+        args: {
+          accountId,
+          ids: changes.created,
+          properties: [
+            "id",
+            "threadId",
+            "mailboxIds",
+            "keywords",
+            "from",
+            "to",
+            "cc",
+            "bcc",
+            "replyTo",
+            "subject",
+            "sentAt",
+            "receivedAt",
+            "preview",
+            "textBody",
+            "htmlBody",
+            "bodyValues",
+            "hasAttachment",
+            "attachments",
+            "references",
+            "inReplyTo",
+            "messageId",
+          ],
+          fetchTextBodyValues: true,
+          fetchHTMLBodyValues: true,
+        },
+        id: "get-created",
+      },
+    ]);
+
+    const getResult = getResponse.methodResponses[0][1] as {
+      list: JMAPEmail[];
+    };
+
+    // Parse emails using existing method
+    const parsedEmails = getResult.list.map((email) => parseJMAPEmail(email));
+
+    return {
+      created: parsedEmails,
+      newState: changes.newState,
+    };
   }
 
   async getOriginalMessage(

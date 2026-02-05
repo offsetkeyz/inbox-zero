@@ -7,7 +7,10 @@ import prisma from "@/utils/prisma";
 import type { Logger } from "@/utils/logger";
 
 export async function getWebhookEmailAccount(
-  where: { email: string } | { watchEmailsSubscriptionId: string },
+  where:
+    | { email: string }
+    | { watchEmailsSubscriptionId: string }
+    | { jmapAccountId: string },
   logger: Logger,
 ) {
   const query = {
@@ -20,6 +23,8 @@ export async function getWebhookEmailAccount(
       timezone: true,
       calendarBookingLink: true,
       lastSyncedHistoryId: true,
+      jmapAccountId: true,
+      lastSyncedJmapState: true,
       autoCategorizeSenders: true,
       filingEnabled: true,
       filingPrompt: true,
@@ -62,36 +67,73 @@ export async function getWebhookEmailAccount(
     });
   }
 
+  // Determine which field to search by
+  const searchField =
+    "watchEmailsSubscriptionId" in where
+      ? "watchEmailsSubscriptionId"
+      : "jmapAccountId";
+  const searchValue =
+    "watchEmailsSubscriptionId" in where
+      ? where.watchEmailsSubscriptionId
+      : where.jmapAccountId;
+
   let emailAccount = await prisma.emailAccount.findFirst({
-    where: { watchEmailsSubscriptionId: where.watchEmailsSubscriptionId },
+    where: { [searchField]: searchValue },
     ...query,
   });
 
   if (!emailAccount) {
-    logger.info("Subscription not found in current field, checking history", {
-      subscriptionId: where.watchEmailsSubscriptionId,
+    logger.info(`${searchField} not found in current field, checking history`, {
+      [searchField]: searchValue,
     });
 
-    const [foundAccount] = await prisma.$queryRaw<Array<{ id: string }>>`
-      SELECT id FROM "EmailAccount"
-      WHERE "watchEmailsSubscriptionHistory" @> ${JSON.stringify([
-        { subscriptionId: where.watchEmailsSubscriptionId },
-      ])}::jsonb
-      LIMIT 1
-    `;
+    // For subscriptionId, check history JSON
+    if (searchField === "watchEmailsSubscriptionId") {
+      const [foundAccount] = await prisma.$queryRaw<Array<{ id: string }>>`
+        SELECT id FROM "EmailAccount"
+        WHERE "watchEmailsSubscriptionHistory" @> ${JSON.stringify([
+          { subscriptionId: searchValue },
+        ])}::jsonb
+        LIMIT 1
+      `;
 
-    if (foundAccount) {
-      emailAccount = await prisma.emailAccount.findUnique({
-        where: { id: foundAccount.id },
-        ...query,
-      });
-
-      if (emailAccount) {
-        logger.info("Found account by historical subscription ID", {
-          subscriptionId: where.watchEmailsSubscriptionId,
-          email: emailAccount.email,
-          currentSubscriptionId: emailAccount.watchEmailsSubscriptionId,
+      if (foundAccount) {
+        emailAccount = await prisma.emailAccount.findUnique({
+          where: { id: foundAccount.id },
+          ...query,
         });
+
+        if (emailAccount) {
+          logger.info("Found account by historical subscription ID", {
+            subscriptionId: searchValue,
+            email: emailAccount.email,
+            currentSubscriptionId: emailAccount.watchEmailsSubscriptionId,
+          });
+        }
+      }
+    }
+    // For jmapAccountId, check history JSON (stored differently)
+    else if (searchField === "jmapAccountId") {
+      const [foundAccount] = await prisma.$queryRaw<Array<{ id: string }>>`
+        SELECT id FROM "EmailAccount"
+        WHERE "watchEmailsSubscriptionHistory" @> ${JSON.stringify([
+          { jmapAccountId: searchValue },
+        ])}::jsonb
+        LIMIT 1
+      `;
+
+      if (foundAccount) {
+        emailAccount = await prisma.emailAccount.findUnique({
+          where: { id: foundAccount.id },
+          ...query,
+        });
+
+        if (emailAccount) {
+          logger.info("Found account by historical JMAP account ID", {
+            jmapAccountId: searchValue,
+            email: emailAccount.email,
+          });
+        }
       }
     }
   }

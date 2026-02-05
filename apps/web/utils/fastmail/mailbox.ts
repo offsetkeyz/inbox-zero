@@ -42,7 +42,9 @@ export async function getMailboxByRole(
     role: FastmailMailboxRole;
   },
 ): Promise<JMAPMailbox | null> {
-  const mailboxes = await getMailboxes(client, { accountId: options.accountId });
+  const mailboxes = await getMailboxes(client, {
+    accountId: options.accountId,
+  });
   return mailboxes.list.find((m) => m.role === options.role) || null;
 }
 
@@ -53,7 +55,9 @@ export async function getMailboxById(
     mailboxId: string;
   },
 ): Promise<JMAPMailbox | null> {
-  const mailboxes = await getMailboxes(client, { accountId: options.accountId });
+  const mailboxes = await getMailboxes(client, {
+    accountId: options.accountId,
+  });
   return mailboxes.list.find((m) => m.id === options.mailboxId) || null;
 }
 
@@ -64,11 +68,11 @@ export async function getMailboxByName(
     name: string;
   },
 ): Promise<JMAPMailbox | null> {
-  const mailboxes = await getMailboxes(client, { accountId: options.accountId });
+  const mailboxes = await getMailboxes(client, {
+    accountId: options.accountId,
+  });
   const lowerName = options.name.toLowerCase();
-  return (
-    mailboxes.list.find((m) => m.name.toLowerCase() === lowerName) || null
-  );
+  return mailboxes.list.find((m) => m.name.toLowerCase() === lowerName) || null;
 }
 
 export function parseMailboxToLabel(mailbox: JMAPMailbox): EmailLabel {

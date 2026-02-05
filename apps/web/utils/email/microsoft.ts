@@ -1757,6 +1757,17 @@ export class OutlookProvider implements EmailProvider {
     await unwatchOutlook(this.client.getClient(), subscriptionId, this.logger);
   }
 
+  async getEmailChanges(
+    _sinceState: string | undefined,
+    _newState: string,
+  ): Promise<{
+    created: ParsedMessage[];
+    newState: string;
+  }> {
+    // Outlook uses delta sync via processHistory, not Email/changes
+    throw new Error("getEmailChanges not supported for Outlook");
+  }
+
   isReplyInThread(message: ParsedMessage): boolean {
     try {
       return atob(message.conversationIndex || "").length > 22;
