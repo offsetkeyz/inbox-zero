@@ -141,13 +141,10 @@ export const GET = withError("fastmail/linking/callback", async (request) => {
     }
 
     if (linkingResult.type === "continue_create") {
-      logger.info(
-        "Creating new Fastmail account and linking to current user",
-        {
-          email: providerEmail,
-          targetUserId,
-        },
-      );
+      logger.info("Creating new Fastmail account and linking to current user", {
+        email: providerEmail,
+        targetUserId,
+      });
 
       const expiresAt = tokens.expires_in
         ? new Date(Date.now() + tokens.expires_in * 1000)
@@ -171,6 +168,7 @@ export const GET = withError("fastmail/linking/callback", async (request) => {
                 userId: targetUserId,
                 name: accountName,
                 image: null,
+                jmapAccountId: providerAccountId,
               },
             },
           },
@@ -204,6 +202,21 @@ export const GET = withError("fastmail/linking/callback", async (request) => {
             );
 
             await updateFastmailAccountTokens(accountNow.id, tokens);
+
+            // Ensure jmapAccountId is set (may have been missing from older accounts)
+            const emailAccount = await prisma.emailAccount.findUnique({
+              where: { accountId: accountNow.id },
+              select: { id: true, jmapAccountId: true },
+            });
+            if (emailAccount && !emailAccount.jmapAccountId) {
+              await prisma.emailAccount.update({
+                where: { id: emailAccount.id },
+                data: { jmapAccountId: providerAccountId },
+              });
+              logger.info("Backfilled jmapAccountId for existing account", {
+                emailAccountId: emailAccount.id,
+              });
+            }
           } else {
             throw createError;
           }
@@ -233,6 +246,21 @@ export const GET = withError("fastmail/linking/callback", async (request) => {
         linkingResult.existingAccountId,
         tokens,
       );
+
+      // Ensure jmapAccountId is set (may have been missing from older accounts)
+      const emailAccount = await prisma.emailAccount.findUnique({
+        where: { accountId: linkingResult.existingAccountId },
+        select: { id: true, jmapAccountId: true },
+      });
+      if (emailAccount && !emailAccount.jmapAccountId) {
+        await prisma.emailAccount.update({
+          where: { id: emailAccount.id },
+          data: { jmapAccountId: providerAccountId },
+        });
+        logger.info("Backfilled jmapAccountId for existing account", {
+          emailAccountId: emailAccount.id,
+        });
+      }
 
       logger.info("Successfully updated tokens for Fastmail account", {
         email: providerEmail,
