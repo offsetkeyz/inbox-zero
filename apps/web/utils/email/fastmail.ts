@@ -1,3 +1,4 @@
+import { env } from "@/env";
 import type { FastmailClient } from "@/utils/fastmail/client";
 import type { ParsedMessage } from "@/utils/types";
 import type { InboxZeroLabel } from "@/utils/label";
@@ -1229,12 +1230,84 @@ ${email.textHtml || email.textPlain || ""}
     expirationDate: Date;
     subscriptionId?: string;
   } | null> {
-    this.logger.warn("watchEmails not supported for Fastmail");
-    return null;
+    if (!env.FASTMAIL_WEBHOOK_VERIFICATION_TOKEN) {
+      this.logger.warn(
+        "FASTMAIL_WEBHOOK_VERIFICATION_TOKEN not configured, skipping watch",
+      );
+      return null;
+    }
+
+    const accountId = await this.getAccountId();
+
+    const webhookUrl = `${env.NEXT_PUBLIC_BASE_URL}/api/fastmail/webhook?token=${env.FASTMAIL_WEBHOOK_VERIFICATION_TOKEN}`;
+    const expires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
+
+    this.logger.info("Creating JMAP PushSubscription", {
+      accountId,
+      expiresAt: expires.toISOString(),
+    });
+
+    const response = await this.client.makeRequest([
+      {
+        methodName: "PushSubscription/set",
+        args: {
+          create: {
+            "inbox-zero": {
+              deviceClientId: "inbox-zero",
+              url: webhookUrl,
+              types: ["Email"],
+              expires: expires.toISOString(),
+            },
+          },
+        },
+        id: "push-create",
+      },
+    ]);
+
+    const setResponse = response.methodResponses[0]?.[1] as {
+      created?: Record<string, { id: string; expires: string }>;
+      notCreated?: Record<string, { type: string; description?: string }>;
+    };
+
+    const created = setResponse?.created?.["inbox-zero"];
+    if (!created) {
+      const notCreated = setResponse?.notCreated?.["inbox-zero"];
+      this.logger.error("Failed to create push subscription", { notCreated });
+      throw new Error(
+        `Failed to create push subscription: ${notCreated?.description || "unknown error"}`,
+      );
+    }
+
+    this.logger.info("Created JMAP PushSubscription", {
+      subscriptionId: created.id,
+      expires: created.expires,
+    });
+
+    return {
+      expirationDate: new Date(created.expires),
+      subscriptionId: created.id,
+    };
   }
 
-  async unwatchEmails(_subscriptionId?: string): Promise<void> {
-    this.logger.warn("unwatchEmails not supported for Fastmail");
+  async unwatchEmails(subscriptionId?: string): Promise<void> {
+    if (!subscriptionId) {
+      this.logger.info("No subscription ID provided, skipping unwatch");
+      return;
+    }
+
+    this.logger.info("Destroying JMAP PushSubscription", { subscriptionId });
+
+    await this.client.makeRequest([
+      {
+        methodName: "PushSubscription/set",
+        args: {
+          destroy: [subscriptionId],
+        },
+        id: "push-destroy",
+      },
+    ]);
+
+    this.logger.info("Destroyed JMAP PushSubscription", { subscriptionId });
   }
 
   async getOriginalMessage(
