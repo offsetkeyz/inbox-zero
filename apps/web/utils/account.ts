@@ -9,6 +9,7 @@ import {
   getOutlookClientWithRefresh,
   getAccessTokenFromClient as getOutlookAccessToken,
 } from "@/utils/outlook/client";
+import { getFastmailClientWithRefresh } from "@/utils/fastmail/client";
 import { redirect } from "next/navigation";
 import prisma from "@/utils/prisma";
 import {
@@ -114,6 +115,24 @@ export async function getOutlookClientForEmailId({
     logger,
   });
   return outlook;
+}
+
+export async function getFastmailClientForEmail({
+  emailAccountId,
+  logger,
+}: {
+  emailAccountId: string;
+  logger: Logger;
+}) {
+  const tokens = await getTokens({ emailAccountId });
+  const fastmail = await getFastmailClientWithRefresh({
+    accessToken: tokens.accessToken,
+    refreshToken: tokens.refreshToken || "",
+    expiresAt: tokens.expiresAt,
+    emailAccountId,
+    logger,
+  });
+  return fastmail;
 }
 
 async function getTokens({ emailAccountId }: { emailAccountId: string }) {
