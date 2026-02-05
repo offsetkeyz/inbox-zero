@@ -29,11 +29,43 @@ const mockJMAPEmail: JMAPEmail = {
   hasAttachment: false,
   preview: "This is a preview of the email content...",
   bodyValues: {
-    "1": { value: "Plain text body", isEncodingProblem: false, isTruncated: false },
-    "2": { value: "<p>HTML body</p>", isEncodingProblem: false, isTruncated: false },
+    "1": {
+      value: "Plain text body",
+      isEncodingProblem: false,
+      isTruncated: false,
+    },
+    "2": {
+      value: "<p>HTML body</p>",
+      isEncodingProblem: false,
+      isTruncated: false,
+    },
   },
-  textBody: [{ partId: "1", blobId: "b1", size: 100, name: null, type: "text/plain", charset: "utf-8", disposition: null, cid: null, location: null }],
-  htmlBody: [{ partId: "2", blobId: "b2", size: 200, name: null, type: "text/html", charset: "utf-8", disposition: null, cid: null, location: null }],
+  textBody: [
+    {
+      partId: "1",
+      blobId: "b1",
+      size: 100,
+      name: null,
+      type: "text/plain",
+      charset: "utf-8",
+      disposition: null,
+      cid: null,
+      location: null,
+    },
+  ],
+  htmlBody: [
+    {
+      partId: "2",
+      blobId: "b2",
+      size: 200,
+      name: null,
+      type: "text/html",
+      charset: "utf-8",
+      disposition: null,
+      cid: null,
+      location: null,
+    },
+  ],
   attachments: [],
 };
 
@@ -87,7 +119,13 @@ describe("queryEmails", () => {
 
   it("sends correct JMAP request", async () => {
     vi.mocked(mockClient.makeRequest).mockResolvedValueOnce({
-      methodResponses: [["Email/query", { ids: ["email-1", "email-2"], position: 0, total: 2 }, "email-query"]],
+      methodResponses: [
+        [
+          "Email/query",
+          { ids: ["email-1", "email-2"], position: 0, total: 2 },
+          "email-query",
+        ],
+      ],
       sessionState: "state-1",
     });
 
@@ -129,7 +167,9 @@ describe("getEmails", () => {
 
   it("fetches emails by ID", async () => {
     vi.mocked(mockClient.makeRequest).mockResolvedValueOnce({
-      methodResponses: [["Email/get", { list: [mockJMAPEmail], notFound: [] }, "email-get"]],
+      methodResponses: [
+        ["Email/get", { list: [mockJMAPEmail], notFound: [] }, "email-get"],
+      ],
       sessionState: "state-1",
     });
 

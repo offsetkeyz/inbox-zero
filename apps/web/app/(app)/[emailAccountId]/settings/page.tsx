@@ -9,7 +9,7 @@ import { OrgAnalyticsConsentSection } from "@/app/(app)/[emailAccountId]/setting
 import { ResetAnalyticsSection } from "@/app/(app)/[emailAccountId]/settings/ResetAnalyticsSection";
 import { RuleImportExportSetting } from "@/app/(app)/[emailAccountId]/assistant/settings/RuleImportExportSetting";
 import { WebhookSection } from "@/app/(app)/[emailAccountId]/settings/WebhookSection";
-import { FormSection, FormWrapper } from "@/components/Form";
+import { FormWrapper } from "@/components/Form";
 import { PageHeader } from "@/components/PageHeader";
 import { TabsToolbar } from "@/components/TabsToolbar";
 import { SectionDescription } from "@/components/Typography";

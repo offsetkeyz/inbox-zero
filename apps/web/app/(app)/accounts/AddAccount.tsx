@@ -6,7 +6,10 @@ import { toastError, toastSuccess } from "@/components/Toast";
 import Image from "next/image";
 import { MutedText } from "@/components/Typography";
 import { getAccountLinkingUrl } from "@/utils/account-linking";
-import { isGoogleProvider, isFastmailProvider } from "@/utils/email/provider-types";
+import {
+  isGoogleProvider,
+  isFastmailProvider,
+} from "@/utils/email/provider-types";
 import {
   Dialog,
   DialogContent,
@@ -36,7 +39,9 @@ export function AddAccount() {
     reset,
   } = useForm<FastmailTokenForm>();
 
-  const handleAddAccount = async (provider: "google" | "microsoft" | "fastmail") => {
+  const handleAddAccount = async (
+    provider: "google" | "microsoft" | "fastmail",
+  ) => {
     let setLoading: (loading: boolean) => void;
     if (isGoogleProvider(provider)) {
       setLoading = setIsLoadingGoogle;
@@ -78,23 +83,30 @@ export function AddAccount() {
         body: JSON.stringify({ token: data.token }),
       });
 
-      let result;
+      let result: { error?: string; message?: string };
       try {
         result = await response.json();
       } catch (parseError) {
         console.error("Failed to parse response:", parseError);
-        throw new Error(`Server error (${response.status}). Check server logs.`);
+        throw new Error(
+          `Server error (${response.status}). Check server logs.`,
+        );
       }
 
       if (!response.ok) {
-        const errorMessage = result.error || result.message || "Failed to connect Fastmail account";
+        const errorMessage =
+          result.error ||
+          result.message ||
+          "Failed to connect Fastmail account";
         console.error("API error response:", result);
         throw new Error(errorMessage);
       }
 
       toastSuccess({
         title: "Fastmail connected",
-        description: result.message || "Your Fastmail account has been connected successfully",
+        description:
+          result.message ||
+          "Your Fastmail account has been connected successfully",
       });
 
       reset();
@@ -104,7 +116,10 @@ export function AddAccount() {
       console.error("Error connecting Fastmail:", error);
       toastError({
         title: "Error connecting Fastmail",
-        description: error instanceof Error ? error.message : "Please try again or contact support",
+        description:
+          error instanceof Error
+            ? error.message
+            : "Please try again or contact support",
       });
     } finally {
       setIsLoadingFastmail(false);
@@ -119,7 +134,12 @@ export function AddAccount() {
           className="w-full"
           onClick={() => handleAddAccount("google")}
           loading={isLoadingGoogle}
-          disabled={isLoadingGoogle || isLoadingMicrosoft || isLoadingFastmail || isLoadingFastmailOAuth}
+          disabled={
+            isLoadingGoogle ||
+            isLoadingMicrosoft ||
+            isLoadingFastmail ||
+            isLoadingFastmailOAuth
+          }
         >
           <Image
             src="/images/google.svg"
@@ -135,7 +155,12 @@ export function AddAccount() {
           className="w-full"
           onClick={() => handleAddAccount("microsoft")}
           loading={isLoadingMicrosoft}
-          disabled={isLoadingGoogle || isLoadingMicrosoft || isLoadingFastmail || isLoadingFastmailOAuth}
+          disabled={
+            isLoadingGoogle ||
+            isLoadingMicrosoft ||
+            isLoadingFastmail ||
+            isLoadingFastmailOAuth
+          }
         >
           <Image
             src="/images/microsoft.svg"
@@ -151,7 +176,12 @@ export function AddAccount() {
             <Button
               variant="outline"
               className="w-full"
-              disabled={isLoadingGoogle || isLoadingMicrosoft || isLoadingFastmail || isLoadingFastmailOAuth}
+              disabled={
+                isLoadingGoogle ||
+                isLoadingMicrosoft ||
+                isLoadingFastmail ||
+                isLoadingFastmailOAuth
+              }
             >
               <Image
                 src="/images/fastmail.svg"
@@ -201,13 +231,18 @@ export function AddAccount() {
                 </div>
               </div>
 
-              <form onSubmit={handleSubmit(handleFastmailSubmit)} className="space-y-4">
+              <form
+                onSubmit={handleSubmit(handleFastmailSubmit)}
+                className="space-y-4"
+              >
                 <div>
                   <p className="text-sm text-muted-foreground mb-4">
                     To create an API token:
                   </p>
                   <ol className="text-sm text-muted-foreground list-decimal list-inside space-y-1 mb-4">
-                    <li>Go to Fastmail Settings → Privacy & Security → API tokens</li>
+                    <li>
+                      Go to Fastmail Settings → Privacy & Security → API tokens
+                    </li>
                     <li>Click "New API token"</li>
                     <li>Give it a name (e.g., "Inbox Zero")</li>
                     <li>Enable Mail access</li>
@@ -224,7 +259,12 @@ export function AddAccount() {
                     error={errors.token}
                   />
                 </div>
-                <Button type="submit" loading={isLoadingFastmail} className="w-full" variant="outline">
+                <Button
+                  type="submit"
+                  loading={isLoadingFastmail}
+                  className="w-full"
+                  variant="outline"
+                >
                   Connect with API Token
                 </Button>
               </form>

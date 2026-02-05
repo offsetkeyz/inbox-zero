@@ -7,6 +7,7 @@ import {
   deleteDraft,
 } from "./mail";
 import type { FastmailClient } from "./client";
+import type { JMAPResponse } from "./types";
 
 const mockClient = {
   makeRequest: vi.fn(),
@@ -50,7 +51,9 @@ describe("getIdentities", () => {
       sessionState: "session-1",
     });
 
-    const result = await getIdentities(mockClient, { accountId: "account-123" });
+    const result = await getIdentities(mockClient, {
+      accountId: "account-123",
+    });
 
     expect(mockClient.makeRequest).toHaveBeenCalledWith([
       {
@@ -87,7 +90,9 @@ describe("getPrimaryIdentity", () => {
       sessionState: "session-1",
     });
 
-    const identity = await getPrimaryIdentity(mockClient, { accountId: "account-123" });
+    const identity = await getPrimaryIdentity(mockClient, {
+      accountId: "account-123",
+    });
 
     expect(identity?.id).toBe("identity-1");
     expect(identity?.email).toBe("test@fastmail.com");
@@ -110,7 +115,9 @@ describe("getPrimaryIdentity", () => {
       sessionState: "session-1",
     });
 
-    const identity = await getPrimaryIdentity(mockClient, { accountId: "account-123" });
+    const identity = await getPrimaryIdentity(mockClient, {
+      accountId: "account-123",
+    });
 
     expect(identity).toBeNull();
   });
@@ -136,7 +143,7 @@ describe("sendEmail", () => {
         ],
       ],
       sessionState: "session-1",
-    };
+    } as JMAPResponse;
 
     vi.mocked(mockClient.makeRequest)
       .mockResolvedValueOnce(identityResponse)

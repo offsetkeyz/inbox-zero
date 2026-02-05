@@ -6,7 +6,6 @@ import {
   getTrashMailboxId,
   getJunkMailboxId,
 } from "@/utils/fastmail/mailbox";
-import { getEmails } from "@/utils/fastmail/message";
 
 export async function updateEmails(
   client: FastmailClient,
@@ -45,7 +44,7 @@ export async function markEmailsRead(
   const updates: Record<string, Record<string, unknown>> = {};
   for (const id of emailIds) {
     updates[id] = {
-      [`keywords/$seen`]: read ? true : null,
+      "keywords/$seen": read ? true : null,
     };
   }
 

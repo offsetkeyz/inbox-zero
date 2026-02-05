@@ -5,12 +5,13 @@ import { SafeError } from "@/utils/error";
 import { createFastmailClient } from "@/utils/fastmail/client";
 import { connectFastmailTokenBody } from "@/utils/actions/fastmail.validation";
 import { isDuplicateError } from "@/utils/prisma-helpers";
+import type { JMAPSession } from "@/utils/fastmail/types";
 
 export const POST = withAuth("fastmail/linking/token", async (request) => {
   const logger = request.logger;
   const userId = request.auth.userId;
 
-  let body;
+  let body: unknown;
   try {
     body = await request.json();
   } catch {
@@ -30,7 +31,7 @@ export const POST = withAuth("fastmail/linking/token", async (request) => {
 
   const client = createFastmailClient(token, logger);
 
-  let session_data;
+  let session_data: JMAPSession;
   try {
     session_data = await client.getSession();
     logger.info("Fastmail session data received", {

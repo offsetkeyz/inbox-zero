@@ -1,7 +1,10 @@
 import type { GetAuthLinkUrlResponse } from "@/app/api/google/linking/auth-url/route";
 import type { GetOutlookAuthLinkUrlResponse } from "@/app/api/outlook/linking/auth-url/route";
 import type { GetFastmailAuthLinkUrlResponse } from "@/app/api/fastmail/linking/auth-url/route";
-import { isGoogleProvider, isFastmailProvider } from "@/utils/email/provider-types";
+import {
+  isGoogleProvider,
+  isFastmailProvider,
+} from "@/utils/email/provider-types";
 
 /**
  * Initiates the OAuth account linking flow for Google, Microsoft, or Fastmail.
