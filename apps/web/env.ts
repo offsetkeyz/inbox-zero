@@ -96,6 +96,7 @@ export const env = createEnv({
     GOOGLE_PUBSUB_VERIFICATION_TOKEN: z.string().optional(),
 
     MICROSOFT_WEBHOOK_CLIENT_STATE: z.string().optional(),
+    FASTMAIL_WEBHOOK_VERIFICATION_TOKEN: z.string().optional(),
 
     SENTRY_AUTH_TOKEN: z.string().optional(),
     SENTRY_ORGANIZATION: z.string().optional(),
