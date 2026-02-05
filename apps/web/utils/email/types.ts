@@ -43,7 +43,7 @@ export interface EmailSignature {
 }
 
 export interface EmailProvider {
-  readonly name: "google" | "microsoft";
+  readonly name: "google" | "microsoft" | "fastmail";
   toJSON(): { name: string; type: string };
   getThreads(folderId?: string): Promise<EmailThread[]>;
   getThread(threadId: string): Promise<EmailThread>;
@@ -266,6 +266,13 @@ export interface EmailProvider {
     subscriptionId?: string;
   } | null>;
   unwatchEmails(subscriptionId?: string): Promise<void>;
+  getEmailChanges(
+    sinceState: string | undefined,
+    newState: string,
+  ): Promise<{
+    created: ParsedMessage[];
+    newState: string;
+  }>;
   isReplyInThread(message: ParsedMessage): boolean;
   isSentMessage(message: ParsedMessage): boolean;
   moveThreadToFolder(

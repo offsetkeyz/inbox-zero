@@ -210,6 +210,10 @@ export const saveRulesPromptAction = actionClient
           multiRuleSelectionEnabled: true,
           timezone: true,
           calendarBookingLink: true,
+          jmapAccountId: true,
+          lastSyncedJmapState: true,
+          filingEnabled: true,
+          filingPrompt: true,
           rulesPrompt: true,
           categories: { select: { id: true, name: true } },
           user: {
@@ -448,6 +452,10 @@ export const createRulesAction = actionClient
           multiRuleSelectionEnabled: true,
           timezone: true,
           calendarBookingLink: true,
+          jmapAccountId: true,
+          lastSyncedJmapState: true,
+          filingEnabled: true,
+          filingPrompt: true,
           rulesPrompt: true,
           categories: { select: { id: true, name: true } },
           user: {

@@ -23,6 +23,10 @@ function getEmailAccount(overrides = {}): EmailAccountForDigest {
     timezone: null,
     calendarBookingLink: null,
     multiRuleSelectionEnabled: false,
+    jmapAccountId: null,
+    lastSyncedJmapState: null,
+    filingEnabled: false,
+    filingPrompt: null,
     account: {
       provider: "gmail",
     },

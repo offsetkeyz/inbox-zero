@@ -117,7 +117,10 @@ export class OutlookProvider implements EmailProvider {
       this.logger.error("getThread failed", {
         threadId,
         error,
-        errorCode: (error as any)?.code,
+        errorCode:
+          error instanceof Error
+            ? (error as { code?: string }).code
+            : undefined,
       });
       throw error;
     }
@@ -171,7 +174,7 @@ export class OutlookProvider implements EmailProvider {
       const message = await getMessage(messageId, this.client, this.logger);
       return message;
     } catch (error) {
-      const err = error as any;
+      const err = error as { code?: string };
       this.logger.error("getMessage failed", {
         messageId,
         error,
@@ -720,7 +723,7 @@ export class OutlookProvider implements EmailProvider {
       );
       return messages;
     } catch (error) {
-      const err = error as any;
+      const err = error as { code?: string };
       this.logger.error("getThreadMessages failed", {
         threadId,
         error,
@@ -1158,8 +1161,9 @@ export class OutlookProvider implements EmailProvider {
           conversationId,
           participantEmail,
           error,
-          errorCode: (error as any)?.code,
-          errorStatusCode: (error as any)?.statusCode,
+          errorCode: (error as { code?: string; statusCode?: number })?.code,
+          errorStatusCode: (error as { code?: string; statusCode?: number })
+            ?.statusCode,
         });
       }
     }
@@ -1757,6 +1761,17 @@ export class OutlookProvider implements EmailProvider {
     await unwatchOutlook(this.client.getClient(), subscriptionId, this.logger);
   }
 
+  async getEmailChanges(
+    _sinceState: string | undefined,
+    _newState: string,
+  ): Promise<{
+    created: ParsedMessage[];
+    newState: string;
+  }> {
+    // Outlook uses delta sync via processHistory, not Email/changes
+    throw new Error("getEmailChanges not supported for Outlook");
+  }
+
   isReplyInThread(message: ParsedMessage): boolean {
     try {
       return atob(message.conversationIndex || "").length > 22;
@@ -1862,7 +1877,7 @@ export class OutlookProvider implements EmailProvider {
       for (const message of sentMessages) {
         if (!message.textHtml) continue;
 
-        const signature = extractSignatureFromHtml(message.textHtml);
+        const signature = await extractSignatureFromHtml(message.textHtml);
         if (signature) {
           // Return the first signature we find
           return [

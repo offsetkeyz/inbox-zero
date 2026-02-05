@@ -20,6 +20,10 @@ export type EmailAccountForBrief = {
   multiRuleSelectionEnabled: boolean;
   timezone: string | null;
   calendarBookingLink: string | null;
+  jmapAccountId: string | null;
+  lastSyncedJmapState: string | null;
+  filingEnabled: boolean;
+  filingPrompt: string | null;
   user: {
     aiProvider: string | null;
     aiModel: string | null;
@@ -97,6 +101,10 @@ export async function processMeetingBriefings({
       multiRuleSelectionEnabled: true,
       timezone: true,
       calendarBookingLink: true,
+      jmapAccountId: true,
+      lastSyncedJmapState: true,
+      filingEnabled: true,
+      filingPrompt: true,
       user: {
         select: {
           aiProvider: true,
