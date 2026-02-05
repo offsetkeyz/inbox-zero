@@ -124,4 +124,84 @@ describe("FastmailProvider watch methods", () => {
       expect(mockClient.makeRequest).not.toHaveBeenCalled();
     });
   });
+
+  describe("getEmailChanges", () => {
+    it("fetches created email IDs since last state", async () => {
+      // First call: Email/changes
+      mockClient.makeRequest.mockResolvedValueOnce({
+        methodResponses: [
+          [
+            "Email/changes",
+            {
+              oldState: "oldState123",
+              newState: "newState456",
+              hasMoreChanges: false,
+              created: ["email_1", "email_2"],
+              updated: ["email_3"],
+              destroyed: ["email_4"],
+            },
+            "changes",
+          ],
+        ],
+      });
+
+      // Second call: Email/get
+      mockClient.makeRequest.mockResolvedValueOnce({
+        methodResponses: [
+          [
+            "Email/get",
+            {
+              list: [
+                {
+                  id: "email_1",
+                  threadId: "thread_1",
+                  mailboxIds: { inbox_id: true },
+                  keywords: {},
+                },
+                {
+                  id: "email_2",
+                  threadId: "thread_2",
+                  mailboxIds: { inbox_id: true },
+                  keywords: {},
+                },
+              ],
+            },
+            "get-created",
+          ],
+        ],
+      });
+
+      provider = new FastmailProvider(mockClient as never, mockLogger);
+
+      const result = await provider.getEmailChanges(
+        "oldState123",
+        "newState456",
+      );
+
+      expect(result.created).toHaveLength(2);
+      expect(result.newState).toBe("newState456");
+      expect(result.created[0].id).toBe("email_1");
+    });
+
+    it("handles cannotCalculateChanges error", async () => {
+      mockClient.makeRequest.mockResolvedValueOnce({
+        methodResponses: [
+          [
+            "error",
+            {
+              type: "cannotCalculateChanges",
+              description: "State too old",
+            },
+            "changes",
+          ],
+        ],
+      });
+
+      provider = new FastmailProvider(mockClient as never, mockLogger);
+
+      await expect(
+        provider.getEmailChanges("veryOldState", "newState"),
+      ).rejects.toThrow("cannotCalculateChanges");
+    });
+  });
 });
