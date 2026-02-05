@@ -40,7 +40,9 @@ const mockLogger = {
   info: vi.fn(),
   warn: vi.fn(),
   error: vi.fn(),
+  trace: vi.fn(),
   with: vi.fn().mockReturnThis(),
+  flush: vi.fn().mockResolvedValue(undefined),
 };
 
 describe("processStateChange", () => {

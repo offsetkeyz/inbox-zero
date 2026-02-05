@@ -58,7 +58,7 @@ describe("POST /api/fastmail/webhook", () => {
 
   it("rejects requests with invalid token", async () => {
     const req = createMockRequest({ "@type": "StateChange" }, "wrong-token");
-    const response = await POST(req);
+    const response = await POST(req, { params: Promise.resolve({}) });
 
     expect(response.status).toBe(403);
   });
@@ -73,7 +73,7 @@ describe("POST /api/fastmail/webhook", () => {
       "test-token-123",
     );
 
-    const response = await POST(req);
+    const response = await POST(req, { params: Promise.resolve({}) });
     const body = await response.json();
 
     expect(response.status).toBe(200);
@@ -89,7 +89,7 @@ describe("POST /api/fastmail/webhook", () => {
     };
     const req = createMockRequest(stateChange, "test-token-123");
 
-    const response = await POST(req);
+    const response = await POST(req, { params: Promise.resolve({}) });
 
     expect(response.status).toBe(200);
     expect(processStateChange).toHaveBeenCalled();
@@ -98,7 +98,7 @@ describe("POST /api/fastmail/webhook", () => {
   it("returns 400 for invalid payload", async () => {
     const req = createMockRequest({ invalid: "payload" }, "test-token-123");
 
-    const response = await POST(req);
+    const response = await POST(req, { params: Promise.resolve({}) });
 
     expect(response.status).toBe(400);
   });

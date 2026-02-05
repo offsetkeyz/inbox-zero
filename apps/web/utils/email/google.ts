@@ -1419,6 +1419,17 @@ export class GmailProvider implements EmailProvider {
     await unwatchGmail(this.client);
   }
 
+  async getEmailChanges(
+    _sinceState: string | undefined,
+    _newState: string,
+  ): Promise<{
+    created: ParsedMessage[];
+    newState: string;
+  }> {
+    // Gmail uses push notifications via processHistory, not Email/changes
+    throw new Error("getEmailChanges not supported for Gmail");
+  }
+
   // Gmail: The first message id in a thread is the threadId
   isReplyInThread(message: ParsedMessage): boolean {
     return !!(message.id && message.id !== message.threadId);

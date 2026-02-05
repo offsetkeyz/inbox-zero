@@ -266,6 +266,13 @@ export interface EmailProvider {
     subscriptionId?: string;
   } | null>;
   unwatchEmails(subscriptionId?: string): Promise<void>;
+  getEmailChanges(
+    sinceState: string | undefined,
+    newState: string,
+  ): Promise<{
+    created: ParsedMessage[];
+    newState: string;
+  }>;
   isReplyInThread(message: ParsedMessage): boolean;
   isSentMessage(message: ParsedMessage): boolean;
   moveThreadToFolder(
