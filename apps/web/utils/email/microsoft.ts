@@ -1862,7 +1862,7 @@ export class OutlookProvider implements EmailProvider {
       for (const message of sentMessages) {
         if (!message.textHtml) continue;
 
-        const signature = extractSignatureFromHtml(message.textHtml);
+        const signature = await extractSignatureFromHtml(message.textHtml);
         if (signature) {
           // Return the first signature we find
           return [
