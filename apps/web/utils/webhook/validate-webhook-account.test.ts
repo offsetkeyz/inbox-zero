@@ -245,6 +245,34 @@ describe("validateWebhookAccount", () => {
     });
   });
 
+  describe("when Fastmail account has no refresh_token (token auth)", () => {
+    it("should succeed when access_token exists and provider is fastmail", async () => {
+      const emailAccount = createMockEmailAccount({
+        account: {
+          provider: "fastmail",
+          access_token: "fastmail-api-token",
+          refresh_token: null,
+          expires_at: null,
+          disconnectedAt: null,
+        },
+      });
+
+      vi.mocked(isPremium).mockReturnValue(true);
+      vi.mocked(hasAiAccess).mockReturnValue(true);
+
+      const result = await validateWebhookAccount(emailAccount, logger);
+
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data).toEqual({
+          emailAccount,
+          hasAutomationRules: true,
+          hasAiAccess: true,
+        });
+      }
+    });
+  });
+
   describe("when account is null", () => {
     it("should return failure with error logged", async () => {
       const emailAccount = {

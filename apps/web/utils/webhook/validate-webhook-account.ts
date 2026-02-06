@@ -228,11 +228,16 @@ export async function validateWebhookAccount(
     return { success: false, response: NextResponse.json({ ok: true }) };
   }
 
-  if (
-    !emailAccount.account?.access_token ||
-    !emailAccount.account?.refresh_token
-  ) {
-    logger.error("Missing access or refresh token");
+  if (!emailAccount.account?.access_token) {
+    logger.error("Missing access token");
+    return { success: false, response: NextResponse.json({ ok: true }) };
+  }
+
+  // Fastmail API tokens don't expire and don't have refresh tokens
+  // Other providers (Google, Microsoft) use OAuth and need refresh tokens
+  const isFastmail = emailAccount.account.provider === "fastmail";
+  if (!isFastmail && !emailAccount.account?.refresh_token) {
+    logger.error("Missing refresh token for non-Fastmail provider");
     return { success: false, response: NextResponse.json({ ok: true }) };
   }
 
