@@ -190,3 +190,28 @@ export function ensureManagedSection(existingScript: string | null): string {
   const trimmed = script.trimEnd();
   return `${trimmed}\n\n${createManagedSectionBlock()}\n`;
 }
+
+export function insertFilterIntoSection(
+  script: string,
+  filterRule: string,
+): string {
+  const endIndex = script.indexOf(SIEVE_MANAGED_SECTION_END);
+
+  if (endIndex === -1) {
+    throw new Error("Managed section END marker not found");
+  }
+
+  // Update timestamp
+  const newTimestamp = new Date().toISOString();
+  const updatedScript = script.replace(
+    /# Last updated: .+/,
+    `# Last updated: ${newTimestamp}`,
+  );
+
+  // Insert filter before END marker, ensuring clean spacing
+  const updatedEndIndex = updatedScript.indexOf(SIEVE_MANAGED_SECTION_END);
+  const beforeEnd = updatedScript.substring(0, updatedEndIndex).trimEnd();
+  const afterEnd = updatedScript.substring(updatedEndIndex);
+
+  return `${beforeEnd}\n\n${filterRule}\n${afterEnd}`;
+}

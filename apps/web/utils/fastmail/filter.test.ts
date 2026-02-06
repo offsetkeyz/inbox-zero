@@ -6,6 +6,7 @@ import {
   validateManagedSection,
   createManagedSectionBlock,
   ensureManagedSection,
+  insertFilterIntoSection,
 } from "./filter";
 import {
   SIEVE_MANAGED_SECTION_BEGIN,
@@ -439,5 +440,97 @@ ${SIEVE_MANAGED_SECTION_END}`;
     const script = ensureManagedSection(existing);
 
     expect(script).toBe(existing);
+  });
+});
+
+describe("insertFilterIntoSection", () => {
+  it("inserts filter before END marker", () => {
+    const script = ensureManagedSection(null);
+    const filterRule = generateSieveRule({
+      id: "abc123",
+      from: "test@example.com",
+      addLabelIds: ["label-1"],
+      removeLabelIds: [],
+      sieveFolders: ["Folder1"],
+    });
+
+    const updated = insertFilterIntoSection(script, filterRule);
+
+    expect(updated).toContain(filterRule);
+    expect(updated.indexOf(filterRule)).toBeLessThan(
+      updated.indexOf(SIEVE_MANAGED_SECTION_END),
+    );
+  });
+
+  it("preserves existing filters", () => {
+    const script = ensureManagedSection(null);
+
+    const filter1 = generateSieveRule({
+      id: "abc123",
+      from: "test1@example.com",
+      addLabelIds: ["label-1"],
+      removeLabelIds: [],
+      sieveFolders: ["Folder1"],
+    });
+
+    const withFirst = insertFilterIntoSection(script, filter1);
+
+    const filter2 = generateSieveRule({
+      id: "def456",
+      from: "test2@example.com",
+      addLabelIds: ["label-2"],
+      removeLabelIds: [],
+      sieveFolders: ["Folder2"],
+    });
+
+    const withBoth = insertFilterIntoSection(withFirst, filter2);
+
+    expect(withBoth).toContain(filter1);
+    expect(withBoth).toContain(filter2);
+  });
+
+  it("updates Last updated timestamp", async () => {
+    const script = ensureManagedSection(null);
+    const oldTimestamp = script.match(/# Last updated: (.+)/)![1];
+
+    // Small delay to ensure timestamp changes
+    await new Promise((resolve) => setTimeout(resolve, 2));
+
+    const filterRule = generateSieveRule({
+      id: "abc123",
+      from: "test@example.com",
+      addLabelIds: ["label-1"],
+      removeLabelIds: [],
+      sieveFolders: ["Folder1"],
+    });
+
+    const updated = insertFilterIntoSection(script, filterRule);
+    const newTimestamp = updated.match(/# Last updated: (.+)/)![1];
+
+    expect(newTimestamp).not.toBe(oldTimestamp);
+  });
+
+  it("preserves content outside managed section", () => {
+    const userRules = `require ["fileinto"];
+
+# User's custom rule
+if address :is "from" "custom@example.com" {
+  fileinto "Custom";
+}`;
+
+    const script = `${ensureManagedSection(userRules)}\n# More user rules`;
+
+    const filterRule = generateSieveRule({
+      id: "abc123",
+      from: "test@example.com",
+      addLabelIds: ["label-1"],
+      removeLabelIds: [],
+      sieveFolders: ["Folder1"],
+    });
+
+    const updated = insertFilterIntoSection(script, filterRule);
+
+    expect(updated).toContain("# User's custom rule");
+    expect(updated).toContain("# More user rules");
   });
 });
