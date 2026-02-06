@@ -16,3 +16,13 @@ export function generateFilterId(criteria: {
 
   return hash.substring(0, 32);
 }
+
+export function generateSieveRule(options: {
+  id: string;
+  from: string;
+  addLabelIds: string[];
+  removeLabelIds: string[];
+  sieveFolders: string[];
+}): string {
+  throw new Error("Not implemented");
+}
