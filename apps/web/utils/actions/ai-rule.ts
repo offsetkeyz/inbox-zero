@@ -501,11 +501,16 @@ export const createRulesAction = actionClient
           });
           createdRules.push(createdRule);
         } catch (error) {
+          const errorMessage =
+            error instanceof Error ? error.message : String(error);
+
           if (isDuplicateError(error, "name")) {
             logger.info("Skipping duplicate rule", { ruleName: rule.name });
+            errors.push({
+              ruleName: rule.name,
+              error: "A rule with this name already exists",
+            });
           } else {
-            const errorMessage =
-              error instanceof Error ? error.message : String(error);
             logger.error("Failed to create rule", {
               ruleName: rule.name,
               error,
