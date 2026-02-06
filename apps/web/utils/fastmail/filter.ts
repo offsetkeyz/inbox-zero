@@ -215,3 +215,41 @@ export function insertFilterIntoSection(
 
   return `${beforeEnd}\n\n${filterRule}\n${afterEnd}`;
 }
+
+export function regenerateManagedSection(
+  script: string,
+  filters: ParsedFilter[],
+): string {
+  const beginIndex = script.indexOf(SIEVE_MANAGED_SECTION_BEGIN);
+  const endIndex = script.indexOf(SIEVE_MANAGED_SECTION_END);
+
+  if (beginIndex === -1 || endIndex === -1) {
+    throw new Error("Managed section markers not found");
+  }
+
+  // Extract content before and after managed section
+  const beforeSection = script.substring(0, beginIndex);
+  const afterSection = script.substring(
+    endIndex + SIEVE_MANAGED_SECTION_END.length,
+  );
+
+  // Build new managed section
+  const timestamp = new Date().toISOString();
+  let newSection = `${SIEVE_MANAGED_SECTION_BEGIN}\n`;
+  newSection += `${SIEVE_SECTION_WARNING}\n`;
+  newSection += `${SIEVE_SECTION_DESCRIPTION}\n`;
+  newSection += `# Last updated: ${timestamp}\n`;
+
+  for (const filter of filters) {
+    // Re-use stored sieveCode since folder names were already resolved
+    newSection += `\n# Filter ID: ${filter.id}\n`;
+    newSection += `# From: ${filter.from}\n`;
+    newSection += `# Add labels: ${JSON.stringify(filter.addLabelIds)}\n`;
+    newSection += `# Remove labels: ${JSON.stringify(filter.removeLabelIds)}\n`;
+    newSection += `${filter.sieveCode}\n`;
+  }
+
+  newSection += `${SIEVE_MANAGED_SECTION_END}`;
+
+  return beforeSection + newSection + afterSection;
+}

@@ -7,6 +7,7 @@ import {
   createManagedSectionBlock,
   ensureManagedSection,
   insertFilterIntoSection,
+  regenerateManagedSection,
 } from "./filter";
 import {
   SIEVE_MANAGED_SECTION_BEGIN,
@@ -532,5 +533,77 @@ if address :is "from" "custom@example.com" {
 
     expect(updated).toContain("# User's custom rule");
     expect(updated).toContain("# More user rules");
+  });
+});
+
+describe("regenerateManagedSection", () => {
+  it("rebuilds section with provided filters", () => {
+    const originalScript = `require ["fileinto"];
+
+# User rule before
+if address :is "from" "user@example.com" {
+  fileinto "User";
+}
+
+${SIEVE_MANAGED_SECTION_BEGIN}
+# Old content here
+${SIEVE_MANAGED_SECTION_END}
+
+# User rule after`;
+
+    const filters = [
+      {
+        id: "abc123",
+        from: "test1@example.com",
+        addLabelIds: ["label-1"],
+        removeLabelIds: [],
+        sieveCode:
+          'if address :is "from" "test1@example.com" {\n  fileinto "Folder1";\n}',
+      },
+      {
+        id: "def456",
+        from: "test2@example.com",
+        addLabelIds: ["label-2"],
+        removeLabelIds: ["INBOX"],
+        sieveCode:
+          'if address :is "from" "test2@example.com" {\n  fileinto "Folder2";\n  fileinto "Archive";\n}',
+      },
+    ];
+
+    const regenerated = regenerateManagedSection(originalScript, filters);
+
+    // Should preserve user rules
+    expect(regenerated).toContain("# User rule before");
+    expect(regenerated).toContain("# User rule after");
+
+    // Should contain new filters
+    expect(regenerated).toContain("# Filter ID: abc123");
+    expect(regenerated).toContain("# Filter ID: def456");
+
+    // Should parse successfully
+    const parsed = parseManagedSection(regenerated);
+    expect(parsed.filters).toHaveLength(2);
+  });
+
+  it("generates empty section when no filters provided", () => {
+    const originalScript = ensureManagedSection(null);
+    const regenerated = regenerateManagedSection(originalScript, []);
+
+    const parsed = parseManagedSection(regenerated);
+    expect(parsed.found).toBe(true);
+    expect(parsed.filters).toEqual([]);
+  });
+
+  it("updates Last updated timestamp", async () => {
+    const originalScript = ensureManagedSection(null);
+    const oldTimestamp = originalScript.match(/# Last updated: (.+)/)![1];
+
+    // Small delay to ensure timestamp changes
+    await new Promise((resolve) => setTimeout(resolve, 2));
+
+    const regenerated = regenerateManagedSection(originalScript, []);
+    const newTimestamp = regenerated.match(/# Last updated: (.+)/)![1];
+
+    expect(newTimestamp).not.toBe(oldTimestamp);
   });
 });
