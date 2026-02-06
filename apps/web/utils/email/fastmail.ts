@@ -51,6 +51,11 @@ import {
   deleteDraft as deleteDraftAction,
   sendDraft as sendDraftAction,
 } from "@/utils/fastmail/mail";
+import {
+  createFilterOperation,
+  deleteFilterOperation,
+  getFiltersListOperation,
+} from "@/utils/fastmail/filter-operations";
 import type { JMAPEmail } from "@/utils/fastmail/types";
 
 export class FastmailProvider implements EmailProvider {
@@ -1195,28 +1200,51 @@ ${email.textHtml || email.textPlain || ""}
   // ============================================
 
   async getFiltersList(): Promise<EmailFilter[]> {
-    this.logger.warn("getFiltersList not supported for Fastmail");
-    return [];
+    const accountId = await this.getAccountId();
+    return getFiltersListOperation({
+      client: this.client,
+      accountId,
+      logger: this.logger,
+    });
   }
 
-  async createFilter(_options: {
+  async createFilter(options: {
     from: string;
     addLabelIds?: string[];
     removeLabelIds?: string[];
   }): Promise<{ status: number }> {
-    throw new Error("createFilter not yet implemented for Fastmail");
+    const accountId = await this.getAccountId();
+    return createFilterOperation({
+      client: this.client,
+      accountId,
+      logger: this.logger,
+      from: options.from,
+      addLabelIds: options.addLabelIds || [],
+      removeLabelIds: options.removeLabelIds || [],
+    });
   }
 
-  async deleteFilter(_id: string): Promise<{ status: number }> {
-    throw new Error("deleteFilter not yet implemented for Fastmail");
+  async deleteFilter(id: string): Promise<{ status: number }> {
+    const accountId = await this.getAccountId();
+    return deleteFilterOperation({
+      client: this.client,
+      accountId,
+      logger: this.logger,
+      id,
+    });
   }
 
-  async createAutoArchiveFilter(_options: {
+  async createAutoArchiveFilter(options: {
     from: string;
     gmailLabelId?: string;
     labelName?: string;
   }): Promise<{ status: number }> {
-    throw new Error("createAutoArchiveFilter not yet implemented for Fastmail");
+    const addLabelIds = options.gmailLabelId ? [options.gmailLabelId] : [];
+    return this.createFilter({
+      from: options.from,
+      addLabelIds,
+      removeLabelIds: ["INBOX"],
+    });
   }
 
   // ============================================

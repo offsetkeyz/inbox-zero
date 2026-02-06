@@ -97,7 +97,7 @@ export function parseManagedSection(script: string): ParsedManagedSection {
     const removeLabelsMatch = block.match(/# Remove labels: (\[.*\])/);
 
     // Extract Sieve code (everything after metadata comments)
-    const sieveCodeMatch = block.match(/if address.+?\}/s);
+    const sieveCodeMatch = block.match(/if address[\s\S]+?\}/);
 
     if (
       !id ||
