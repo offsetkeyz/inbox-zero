@@ -209,8 +209,6 @@ describe("processStateChange with token-authenticated account", () => {
     vi.mocked(getWebhookEmailAccount).mockResolvedValue(
       mockEmailAccount as any,
     );
-    vi.mocked(isPremium).mockReturnValue(true);
-    vi.mocked(hasAiAccess).mockReturnValue(true);
     vi.mocked(validateWebhookAccount).mockResolvedValue({
       success: true,
       data: {
@@ -264,5 +262,18 @@ describe("processStateChange with token-authenticated account", () => {
       where: { id: "email-account-token-auth" },
       data: { lastSyncedJmapState: "newState456" },
     });
+
+    expect(processHistoryItem).toHaveBeenCalledTimes(1);
+
+    expect(validateWebhookAccount).toHaveBeenCalledWith(
+      expect.objectContaining({
+        account: expect.objectContaining({
+          provider: "fastmail",
+          access_token: "fastmail-api-token-xyz",
+          refresh_token: null,
+        }),
+      }),
+      expect.any(Object),
+    );
   });
 });
