@@ -3,11 +3,13 @@ import {
   generateFilterId,
   generateSieveRule,
   parseManagedSection,
+  validateManagedSection,
 } from "./filter";
 import {
   SIEVE_MANAGED_SECTION_BEGIN,
   SIEVE_MANAGED_SECTION_END,
 } from "./constants";
+import { SafeError } from "@/utils/error";
 
 describe("generateFilterId", () => {
   it("generates consistent 32-character hash for same criteria", () => {
@@ -268,5 +270,68 @@ ${SIEVE_MANAGED_SECTION_END}`;
 
     expect(result.found).toBe(true);
     expect(result.hasMalformedComments).toBe(true);
+  });
+});
+
+describe("validateManagedSection", () => {
+  it("passes validation for valid empty section", () => {
+    const parsed = {
+      found: true,
+      filters: [],
+    };
+
+    expect(() => validateManagedSection(parsed)).not.toThrow();
+  });
+
+  it("passes validation for valid section with filters", () => {
+    const parsed = {
+      found: true,
+      filters: [
+        {
+          id: "abc123",
+          from: "test@example.com",
+          addLabelIds: ["label-1"],
+          removeLabelIds: [],
+          sieveCode:
+            'if address :is "from" "test@example.com" { fileinto "Folder1"; }',
+        },
+      ],
+    };
+
+    expect(() => validateManagedSection(parsed)).not.toThrow();
+  });
+
+  it("throws SafeError when section not found", () => {
+    const parsed = {
+      found: false,
+      filters: [],
+    };
+
+    expect(() => validateManagedSection(parsed)).toThrow(SafeError);
+    expect(() => validateManagedSection(parsed)).toThrow(/section not found/i);
+  });
+
+  it("throws SafeError for corrupted markers", () => {
+    const parsed = {
+      found: false,
+      filters: [],
+      hasCorruptedMarkers: true,
+    };
+
+    expect(() => validateManagedSection(parsed)).toThrow(SafeError);
+    expect(() => validateManagedSection(parsed)).toThrow(/markers corrupted/i);
+  });
+
+  it("throws SafeError for malformed comments", () => {
+    const parsed = {
+      found: true,
+      filters: [],
+      hasMalformedComments: true,
+    };
+
+    expect(() => validateManagedSection(parsed)).toThrow(SafeError);
+    expect(() => validateManagedSection(parsed)).toThrow(
+      /metadata is malformed/i,
+    );
   });
 });

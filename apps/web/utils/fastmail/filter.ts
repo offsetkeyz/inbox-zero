@@ -4,6 +4,7 @@ import {
   SIEVE_MANAGED_SECTION_END,
 } from "./constants";
 import type { ParsedManagedSection, ParsedFilter } from "./types";
+import { SafeError } from "@/utils/error";
 
 export function generateFilterId(criteria: {
   from: string;
@@ -124,4 +125,24 @@ export function parseManagedSection(script: string): ParsedManagedSection {
     lastUpdated,
     hasMalformedComments,
   };
+}
+
+export function validateManagedSection(parsed: ParsedManagedSection): void {
+  if (parsed.hasCorruptedMarkers) {
+    throw new SafeError(
+      "Filter section markers corrupted. Please reset filters in Fastmail settings or contact support.",
+    );
+  }
+
+  if (!parsed.found) {
+    throw new SafeError(
+      "Inbox Zero filter section not found. Please contact support to reinitialize.",
+    );
+  }
+
+  if (parsed.hasMalformedComments) {
+    throw new SafeError(
+      "Filter metadata is malformed. Manual editing detected. Please contact support.",
+    );
+  }
 }
