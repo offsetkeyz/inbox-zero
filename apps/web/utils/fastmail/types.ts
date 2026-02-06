@@ -187,3 +187,45 @@ export interface JMAPSetResponse {
   notUpdated: Record<string, JMAPError> | null;
   notDestroyed: Record<string, JMAPError> | null;
 }
+
+export interface SieveScript {
+  id: string;
+  name: string;
+  content: string;
+  isActive: boolean;
+}
+
+export interface SieveScriptSetResponse {
+  created?: Record<string, { id: string }>;
+  updated?: Record<string, null>;
+  notCreated?: Record<
+    string,
+    {
+      type: string;
+      description?: string;
+    }
+  >;
+  notUpdated?: Record<
+    string,
+    {
+      type: string;
+      description?: string;
+    }
+  >;
+}
+
+export interface ParsedFilter {
+  id: string;
+  from: string;
+  addLabelIds: string[];
+  removeLabelIds: string[];
+  sieveCode: string;
+}
+
+export interface ParsedManagedSection {
+  found: boolean;
+  filters: ParsedFilter[];
+  lastUpdated?: string;
+  hasCorruptedMarkers?: boolean;
+  hasMalformedComments?: boolean;
+}
