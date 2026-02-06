@@ -541,7 +541,14 @@ export class FastmailProvider implements EmailProvider {
 
     let mailboxId: string | null = null;
     if (labelId) {
-      mailboxId = labelId;
+      // Gmail uses string IDs like "INBOX", "SENT", etc.
+      // Fastmail uses JMAP mailbox IDs. Map Gmail labels to Fastmail mailbox roles.
+      if (labelId === "INBOX") {
+        mailboxId = await getInboxMailboxId(this.client, accountId);
+      } else {
+        // For other labels, try to use it directly (might be a valid JMAP ID)
+        mailboxId = labelId;
+      }
     } else if (type) {
       const mailbox = await getMailboxByName(this.client, {
         accountId,
