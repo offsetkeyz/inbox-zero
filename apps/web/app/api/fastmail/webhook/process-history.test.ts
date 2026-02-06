@@ -14,6 +14,11 @@ vi.mock("@/utils/webhook/validate-webhook-account", () => ({
   validateWebhookAccount: vi.fn(),
 }));
 
+vi.mock("@/utils/premium", () => ({
+  isPremium: vi.fn(),
+  hasAiAccess: vi.fn(),
+}));
+
 vi.mock("@/utils/email/provider", () => ({
   createEmailProvider: vi.fn(),
 }));
@@ -33,7 +38,9 @@ import {
 } from "@/utils/webhook/validate-webhook-account";
 import { createEmailProvider } from "@/utils/email/provider";
 import { processHistoryItem } from "@/utils/webhook/process-history-item";
+import { isPremium, hasAiAccess } from "@/utils/premium";
 import { processStateChange } from "./process-history";
+import { createScopedLogger } from "@/utils/logger";
 import type { StateChange } from "./types";
 
 const mockLogger = {
@@ -156,5 +163,117 @@ describe("processStateChange", () => {
     await processStateChange(stateChange, mockLogger);
 
     expect(processHistoryItem).not.toHaveBeenCalled();
+  });
+});
+
+describe("processStateChange with token-authenticated account", () => {
+  it("processes state change for account without refresh_token", async () => {
+    const jmapAccountId = "jmap-account-token-auth";
+    const userId = "user-token-auth";
+
+    const mockEmailAccount = {
+      id: "email-account-token-auth",
+      email: "tokenuser@fastmail.com",
+      userId,
+      jmapAccountId,
+      lastSyncedJmapState: "oldState123",
+      account: {
+        provider: "fastmail",
+        access_token: "fastmail-api-token-xyz",
+        refresh_token: null,
+        expires_at: null,
+        disconnectedAt: null,
+      },
+      rules: [
+        {
+          id: "rule-1",
+          name: "Test Rule",
+          instructions: "Archive newsletters",
+          actions: [],
+          enabled: true,
+          automate: true,
+        },
+      ],
+      user: {
+        aiProvider: null,
+        aiModel: null,
+        aiApiKey: "test-api-key",
+        premium: {
+          tier: "PRO_MONTHLY",
+          lemonSqueezyRenewsAt: new Date(Date.now() + 86_400_000),
+          stripeSubscriptionStatus: "active",
+        },
+      },
+    };
+
+    vi.mocked(getWebhookEmailAccount).mockResolvedValue(
+      mockEmailAccount as any,
+    );
+    vi.mocked(validateWebhookAccount).mockResolvedValue({
+      success: true,
+      data: {
+        emailAccount: mockEmailAccount,
+        hasAutomationRules: true,
+        hasAiAccess: true,
+      },
+    } as any);
+
+    const mockProvider = {
+      getEmailChanges: vi.fn().mockResolvedValue({
+        created: [
+          {
+            id: "email-1",
+            threadId: "thread-1",
+            subject: "Test Email",
+            from: "sender@example.com",
+            labelIds: ["INBOX"],
+          },
+        ],
+        updated: [],
+        destroyed: [],
+        newState: "newState456",
+      }),
+    };
+
+    vi.mocked(createEmailProvider).mockResolvedValue(mockProvider as any);
+
+    const stateChange = {
+      "@type": "StateChange" as const,
+      changed: {
+        [jmapAccountId]: { Email: "newState456" },
+      },
+    };
+
+    const logger = createScopedLogger("test-token-auth");
+    await processStateChange(stateChange, logger);
+
+    expect(createEmailProvider).toHaveBeenCalledWith({
+      emailAccountId: "email-account-token-auth",
+      provider: "fastmail",
+      logger: expect.any(Object),
+    });
+
+    expect(mockProvider.getEmailChanges).toHaveBeenCalledWith(
+      "oldState123",
+      "newState456",
+    );
+
+    expect(prisma.emailAccount.update).toHaveBeenCalledWith({
+      where: { id: "email-account-token-auth" },
+      data: { lastSyncedJmapState: "newState456" },
+    });
+
+    expect(processHistoryItem).toHaveBeenCalledTimes(1);
+
+    expect(validateWebhookAccount).toHaveBeenCalledWith(
+      expect.objectContaining({
+        account: expect.objectContaining({
+          provider: "fastmail",
+          access_token: "fastmail-api-token-xyz",
+          refresh_token: null,
+        }),
+      }),
+      expect.any(Object),
+    );
   });
 });
