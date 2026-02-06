@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import {
   generateFilterId,
   generateSieveRule,
@@ -8,6 +8,7 @@ import {
   ensureManagedSection,
   insertFilterIntoSection,
   regenerateManagedSection,
+  resolveSieveFolder,
 } from "./filter";
 import {
   SIEVE_MANAGED_SECTION_BEGIN,
@@ -605,5 +606,73 @@ ${SIEVE_MANAGED_SECTION_END}
     const newTimestamp = regenerated.match(/# Last updated: (.+)/)![1];
 
     expect(newTimestamp).not.toBe(oldTimestamp);
+  });
+});
+
+describe("resolveSieveFolder", () => {
+  it("resolves INBOX label to inbox folder name", async () => {
+    const mockClient = {
+      makeRequest: vi.fn().mockResolvedValue({
+        methodResponses: [
+          [
+            "Mailbox/get",
+            {
+              list: [{ id: "inbox-uuid", name: "Inbox", role: "inbox" }],
+            },
+          ],
+        ],
+      }),
+    } as any;
+
+    const resolved = await resolveSieveFolder(
+      "INBOX",
+      mockClient,
+      "account-123",
+    );
+    expect(resolved).toBe("Inbox");
+  });
+
+  it("resolves custom mailbox UUID to folder name", async () => {
+    const mockClient = {
+      makeRequest: vi.fn().mockResolvedValue({
+        methodResponses: [
+          [
+            "Mailbox/get",
+            {
+              list: [
+                { id: "inbox-uuid", name: "Inbox", role: "inbox" },
+                { id: "custom-uuid", name: "Projects", role: null },
+              ],
+            },
+          ],
+        ],
+      }),
+    } as any;
+
+    const resolved = await resolveSieveFolder(
+      "custom-uuid",
+      mockClient,
+      "account-123",
+    );
+    expect(resolved).toBe("Projects");
+  });
+
+  it("throws for unknown mailbox UUID", async () => {
+    const mockClient = {
+      makeRequest: vi.fn().mockResolvedValue({
+        methodResponses: [
+          [
+            "Mailbox/get",
+            {
+              list: [{ id: "inbox-uuid", name: "Inbox", role: "inbox" }],
+            },
+          ],
+        ],
+      }),
+    } as any;
+
+    await expect(
+      resolveSieveFolder("nonexistent-uuid", mockClient, "account-123"),
+    ).rejects.toThrow(/not found/i);
   });
 });

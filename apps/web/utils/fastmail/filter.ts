@@ -6,7 +6,9 @@ import {
   SIEVE_SECTION_DESCRIPTION,
 } from "./constants";
 import type { ParsedManagedSection, ParsedFilter } from "./types";
+import type { FastmailClient } from "./client";
 import { SafeError } from "@/utils/error";
+import { getMailboxByRole, getMailboxById } from "./mailbox";
 
 export function generateFilterId(criteria: {
   from: string;
@@ -252,4 +254,39 @@ export function regenerateManagedSection(
   newSection += `${SIEVE_MANAGED_SECTION_END}`;
 
   return beforeSection + newSection + afterSection;
+}
+
+const GMAIL_LABEL_TO_SIEVE_ROLE: Record<string, string> = {
+  INBOX: "inbox",
+  SPAM: "junk",
+  TRASH: "trash",
+};
+
+export async function resolveSieveFolder(
+  labelId: string,
+  client: FastmailClient,
+  accountId: string,
+): Promise<string> {
+  const role = GMAIL_LABEL_TO_SIEVE_ROLE[labelId];
+  if (role) {
+    const mailbox = await getMailboxByRole(client, {
+      accountId,
+      role: role as any,
+    });
+    if (!mailbox) {
+      throw new SafeError(`Mailbox with role "${role}" not found`);
+    }
+    return mailbox.name;
+  }
+
+  const mailbox = await getMailboxById(client, {
+    accountId,
+    mailboxId: labelId,
+  });
+  if (!mailbox) {
+    throw new SafeError(
+      `Mailbox "${labelId}" not found. The label may have been deleted.`,
+    );
+  }
+  return mailbox.name;
 }
