@@ -4,6 +4,8 @@ import {
   generateSieveRule,
   parseManagedSection,
   validateManagedSection,
+  createManagedSectionBlock,
+  ensureManagedSection,
 } from "./filter";
 import {
   SIEVE_MANAGED_SECTION_BEGIN,
@@ -333,5 +335,109 @@ describe("validateManagedSection", () => {
     expect(() => validateManagedSection(parsed)).toThrow(
       /metadata is malformed/i,
     );
+  });
+});
+
+describe("createManagedSectionBlock", () => {
+  it("includes managed section markers", () => {
+    const block = createManagedSectionBlock();
+
+    expect(block).toContain(SIEVE_MANAGED_SECTION_BEGIN);
+    expect(block).toContain(SIEVE_MANAGED_SECTION_END);
+  });
+
+  it("includes warning and description", () => {
+    const block = createManagedSectionBlock();
+
+    expect(block).toContain("DO NOT MANUALLY EDIT THIS SECTION");
+    expect(block).toContain("Filters managed by Inbox Zero");
+  });
+
+  it("includes timestamp", () => {
+    const before = new Date().toISOString();
+    const block = createManagedSectionBlock();
+    const after = new Date().toISOString();
+
+    const match = block.match(/# Last updated: (.+)/);
+    expect(match).toBeTruthy();
+    const timestamp = match![1];
+    expect(timestamp >= before && timestamp <= after).toBe(true);
+  });
+
+  it("parses successfully", () => {
+    const script = `require ["fileinto"];\n\n${createManagedSectionBlock()}`;
+    const parsed = parseManagedSection(script);
+
+    expect(parsed.found).toBe(true);
+    expect(parsed.filters).toEqual([]);
+    expect(() => validateManagedSection(parsed)).not.toThrow();
+  });
+});
+
+describe("ensureManagedSection", () => {
+  it("creates fresh script when no existing script", () => {
+    const script = ensureManagedSection(null);
+
+    expect(script).toContain('require ["fileinto"];');
+    expect(script).toContain(SIEVE_MANAGED_SECTION_BEGIN);
+    expect(script).toContain(SIEVE_MANAGED_SECTION_END);
+  });
+
+  it("appends managed section to existing script", () => {
+    const existing = `require ["fileinto", "envelope"];
+
+if envelope :is "from" "boss@example.com" {
+  fileinto "Important";
+}`;
+
+    const script = ensureManagedSection(existing);
+
+    // Preserves existing content
+    expect(script).toContain("envelope");
+    expect(script).toContain('if envelope :is "from" "boss@example.com"');
+    // Has managed section
+    expect(script).toContain(SIEVE_MANAGED_SECTION_BEGIN);
+    expect(script).toContain(SIEVE_MANAGED_SECTION_END);
+  });
+
+  it("preserves existing require directives", () => {
+    const existing = `require ["fileinto", "reject", "envelope"];
+
+if address :is "from" "spam@example.com" {
+  reject "Go away";
+}`;
+
+    const script = ensureManagedSection(existing);
+
+    // Original require preserved
+    expect(script).toContain("reject");
+    expect(script).toContain("envelope");
+  });
+
+  it("merges fileinto into existing require if missing", () => {
+    const existing = `require ["reject"];
+
+if address :is "from" "spam@example.com" {
+  reject "Go away";
+}`;
+
+    const script = ensureManagedSection(existing);
+
+    // fileinto added to existing require
+    expect(script).toMatch(/require.*fileinto/);
+    expect(script).toMatch(/require.*reject/);
+  });
+
+  it("returns existing script unchanged if managed section already present", () => {
+    const existing = `require ["fileinto"];
+
+${SIEVE_MANAGED_SECTION_BEGIN}
+# DO NOT MANUALLY EDIT THIS SECTION
+# Last updated: 2026-02-06T10:00:00Z
+${SIEVE_MANAGED_SECTION_END}`;
+
+    const script = ensureManagedSection(existing);
+
+    expect(script).toBe(existing);
   });
 });

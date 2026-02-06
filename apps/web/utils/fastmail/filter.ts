@@ -2,6 +2,8 @@ import crypto from "node:crypto";
 import {
   SIEVE_MANAGED_SECTION_BEGIN,
   SIEVE_MANAGED_SECTION_END,
+  SIEVE_SECTION_WARNING,
+  SIEVE_SECTION_DESCRIPTION,
 } from "./constants";
 import type { ParsedManagedSection, ParsedFilter } from "./types";
 import { SafeError } from "@/utils/error";
@@ -145,4 +147,46 @@ export function validateManagedSection(parsed: ParsedManagedSection): void {
       "Filter metadata is malformed. Manual editing detected. Please contact support.",
     );
   }
+}
+
+export function createManagedSectionBlock(): string {
+  const timestamp = new Date().toISOString();
+
+  return `${SIEVE_MANAGED_SECTION_BEGIN}
+${SIEVE_SECTION_WARNING}
+${SIEVE_SECTION_DESCRIPTION}
+# Last updated: ${timestamp}
+${SIEVE_MANAGED_SECTION_END}`;
+}
+
+export function ensureManagedSection(existingScript: string | null): string {
+  if (!existingScript) {
+    return `require ["fileinto"];\n\n${createManagedSectionBlock()}\n`;
+  }
+
+  // If section already exists, return as-is
+  if (
+    existingScript.includes(SIEVE_MANAGED_SECTION_BEGIN) &&
+    existingScript.includes(SIEVE_MANAGED_SECTION_END)
+  ) {
+    return existingScript;
+  }
+
+  // Merge "fileinto" into existing require directive if needed
+  let script = existingScript;
+  const requireMatch = script.match(/require\s*\[([^\]]+)\]/);
+  if (requireMatch) {
+    const existingRequires = requireMatch[1];
+    if (!existingRequires.includes("fileinto")) {
+      const newRequires = `${existingRequires.trimEnd()}, "fileinto"`;
+      script = script.replace(requireMatch[0], `require [${newRequires}]`);
+    }
+  } else {
+    // No require directive at all — prepend one
+    script = `require ["fileinto"];\n\n${script}`;
+  }
+
+  // Append managed section
+  const trimmed = script.trimEnd();
+  return `${trimmed}\n\n${createManagedSectionBlock()}\n`;
 }
