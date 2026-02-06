@@ -1,4 +1,5 @@
 import crypto from "node:crypto";
+import type { ParsedManagedSection } from "./types";
 
 export function generateFilterId(criteria: {
   from: string;
@@ -43,4 +44,8 @@ export function generateSieveRule(options: {
 if address :is "from" "${escapedFrom}" {
 ${fileintoStatements || "  # No action"}
 }`;
+}
+
+export function parseManagedSection(script: string): ParsedManagedSection {
+  throw new Error("Not implemented");
 }
