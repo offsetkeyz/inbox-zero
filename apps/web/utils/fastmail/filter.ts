@@ -24,5 +24,23 @@ export function generateSieveRule(options: {
   removeLabelIds: string[];
   sieveFolders: string[];
 }): string {
-  throw new Error("Not implemented");
+  const { id, from, addLabelIds, removeLabelIds, sieveFolders } = options;
+
+  const escapedFrom = from.replace(/"/g, '\\"');
+
+  // Generate one fileinto per folder (RFC 5228 compliant)
+  const fileintoStatements = sieveFolders
+    .map((folder) => `  fileinto "${folder}";`)
+    .join("\n");
+
+  const timestamp = new Date().toISOString();
+
+  return `# Filter ID: ${id}
+# From: ${from}
+# Add labels: ${JSON.stringify(addLabelIds)}
+# Remove labels: ${JSON.stringify(removeLabelIds)}
+# Created: ${timestamp}
+if address :is "from" "${escapedFrom}" {
+${fileintoStatements || "  # No action"}
+}`;
 }
