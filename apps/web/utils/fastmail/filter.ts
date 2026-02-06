@@ -36,7 +36,8 @@ export function generateSieveRule(options: {
 }): string {
   const { id, from, addLabelIds, removeLabelIds, sieveFolders } = options;
 
-  const escapedFrom = from.replace(/"/g, '\\"');
+  // RFC 5228 Sieve string escaping: backslashes first, then quotes
+  const escapedFrom = from.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
 
   // Generate one fileinto per folder (RFC 5228 compliant)
   const fileintoStatements = sieveFolders

@@ -137,6 +137,32 @@ describe("generateSieveRule", () => {
     expect(rule).toContain('if address :is "from" "test\\"quote@example.com"');
   });
 
+  it("escapes backslashes in email addresses", () => {
+    const rule = generateSieveRule({
+      id: "stu901",
+      from: "test\\user@example.com",
+      addLabelIds: ["label-1"],
+      removeLabelIds: [],
+      sieveFolders: ["Folder1"],
+    });
+
+    expect(rule).toContain('if address :is "from" "test\\\\user@example.com"');
+  });
+
+  it("escapes both backslashes and quotes", () => {
+    const rule = generateSieveRule({
+      id: "vwx234",
+      from: 'test\\"user@example.com',
+      addLabelIds: ["label-1"],
+      removeLabelIds: [],
+      sieveFolders: ["Folder1"],
+    });
+
+    expect(rule).toContain(
+      'if address :is "from" "test\\\\\\"user@example.com"',
+    );
+  });
+
   it("includes created timestamp", () => {
     const before = new Date().toISOString();
     const rule = generateSieveRule({
