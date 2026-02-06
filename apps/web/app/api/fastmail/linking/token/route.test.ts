@@ -137,4 +137,27 @@ describe("POST /api/fastmail/linking/token", () => {
       data: { jmapAccountId: "account-id-789" },
     });
   });
+
+  it("backfills jmapAccountId when updating existing account without it", async () => {
+    vi.mocked(prisma.account.findUnique).mockResolvedValue({
+      id: "account-123",
+      userId: "user-123",
+      emailAccount: {
+        id: "email-account-123",
+        jmapAccountId: null,
+      },
+    } as any);
+
+    vi.mocked(prisma.account.update).mockResolvedValue({} as any);
+    vi.mocked(prisma.emailAccount.update).mockResolvedValue({} as any);
+
+    const req = createMockRequest({ token: "test-token-abc" });
+    const response = await POST(req);
+
+    expect(response.status).toBe(200);
+    expect(prisma.emailAccount.update).toHaveBeenCalledWith({
+      where: { id: "email-account-123" },
+      data: { jmapAccountId: "account-id-789" },
+    });
+  });
 });

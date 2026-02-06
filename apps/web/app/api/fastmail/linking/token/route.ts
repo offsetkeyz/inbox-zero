@@ -76,7 +76,12 @@ export const POST = withAuth("fastmail/linking/token", async (request) => {
     select: {
       id: true,
       userId: true,
-      emailAccount: true,
+      emailAccount: {
+        select: {
+          id: true,
+          jmapAccountId: true,
+        },
+      },
     },
   });
 
@@ -93,6 +98,16 @@ export const POST = withAuth("fastmail/linking/token", async (request) => {
           access_token: token,
         },
       });
+
+      if (
+        existingAccount.emailAccount &&
+        !existingAccount.emailAccount.jmapAccountId
+      ) {
+        await prisma.emailAccount.update({
+          where: { id: existingAccount.emailAccount.id },
+          data: { jmapAccountId: accountId },
+        });
+      }
 
       return NextResponse.json({
         success: true,
